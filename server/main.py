@@ -68,6 +68,39 @@ app.include_router(stream_router, prefix="/api")
 async def root():
     return {"message": "Prat.AI API - Hybrid ML + LLM System", "version": "1.0.0"}
 
+@app.get("/api/health")
+async def health_check():
+    try:
+        from utils.ml_model import IntentClassifier
+        from utils.gemini_client import GeminiClient
+        
+        status = {
+            "status": "healthy",
+            "gemini_api_key": bool(os.getenv('GEMINI_API_KEY')),
+            "models_exist": False,
+            "database_ok": False
+        }
+        
+        # Check models
+        try:
+            classifier = IntentClassifier()
+            classifier.load()
+            status["models_exist"] = True
+        except:
+            status["models_exist"] = False
+            
+        # Check database
+        try:
+            from utils.database import init_db
+            init_db()
+            status["database_ok"] = True
+        except:
+            status["database_ok"] = False
+            
+        return status
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
