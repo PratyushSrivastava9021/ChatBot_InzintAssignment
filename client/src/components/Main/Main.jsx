@@ -4,7 +4,7 @@ import { Context } from '../../context/Context'
 import PDFUpload from '../PDFUpload/PDFUpload'
 
 const Main = () => {
-  const { onSent, recentPrompt, showResult, loading, resultData, setInput, input, errorMsg, showAbout, setShowAbout, isStreaming, newChat, resetConversationHistory } = useContext(Context);
+  const { onSent, recentPrompt, showResult, loading, resultData, setInput, input, errorMsg, showAbout, setShowAbout, isStreaming, newChat, resetConversationHistory, attachedPDFInfo } = useContext(Context);
   const [attachedPDF, setAttachedPDF] = useState(null);
   const [pdfContent, setPdfContent] = useState('');
   const [isDragging, setIsDragging] = useState(false);
@@ -32,7 +32,8 @@ const Main = () => {
   const handleSend = () => {
     if (input.trim()) {
       const message = input.trim();
-      onSent(message, pdfContent);
+      const pdfInfo = attachedPDF ? { name: attachedPDF.name, size: attachedPDF.size } : null;
+      onSent(message, pdfContent, pdfInfo);
       // Clear PDF after sending
       setAttachedPDF(null);
       setPdfContent('');
@@ -148,15 +149,15 @@ const Main = () => {
             <div className='flex items-start gap-5 p-5 rounded-xl bg-gray-900/30'>
               <img className='w-11 h-11 rounded-full' src={assets.user} alt="User Icon" />
               <div className='flex-1'>
-                {attachedPDF && (
+                {attachedPDFInfo && (
                   <div className="mb-3 p-3 bg-gray-800/50 rounded-lg border border-gray-700">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 bg-red-500 rounded flex items-center justify-center">
                         <span className="text-white text-xs font-bold">PDF</span>
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-gray-200">{attachedPDF.name}</p>
-                        <p className="text-xs text-gray-400">{(attachedPDF.size / 1024 / 1024).toFixed(2)} MB</p>
+                        <p className="text-sm font-medium text-gray-200">{attachedPDFInfo.name}</p>
+                        <p className="text-xs text-gray-400">{(attachedPDFInfo.size / 1024 / 1024).toFixed(2)} MB</p>
                       </div>
                     </div>
                   </div>
@@ -189,7 +190,7 @@ const Main = () => {
                 <div className='text-white text-2xl font-normal flex-1' style={{ lineHeight: '1.75', letterSpacing: '0.01em' }}>
                   <div dangerouslySetInnerHTML={{ __html: resultData }}></div>
                   {isStreaming && (
-                    <span className='inline-block w-1 h-6 bg-blue-500 animate-pulse ml-1 rounded-sm'></span>
+                    <span className='inline w-1 h-6 bg-blue-500 animate-pulse rounded-sm'></span>
                   )}
                 </div>
               )}

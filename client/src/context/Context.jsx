@@ -49,6 +49,7 @@ const ContextProvider = (props) => {
     });
     const [chatHistory, setChatHistory] = useState([]);
     const [historyLoaded, setHistoryLoaded] = useState(false);
+    const [attachedPDFInfo, setAttachedPDFInfo] = useState(null);
 
     const loadHistory = async () => {
         try {
@@ -68,7 +69,7 @@ const ContextProvider = (props) => {
         }
     }, [historyLoaded]);
 
-    const onSent = async (prompt, pdfContent = '') => {
+    const onSent = async (prompt, pdfContent = '', pdfInfo = null) => {
         setErrorMsg("");
 
         if (!prompt || prompt.trim() === "") {
@@ -85,10 +86,14 @@ const ContextProvider = (props) => {
 
         setPrevPrompts(prev => [...prev, prompt]);
         setRecentPrompt(prompt);
+        setAttachedPDFInfo(pdfInfo);
 
         try {
             // Use regular API with simulated streaming for reliability
             const response = await sendMessage(prompt, pdfContent, sessionId);
+            
+            // Stop loading spinner before streaming starts
+            setLoading(false);
             
             // Simulate streaming effect character by character for smooth ChatGPT-like experience
             const text = response.response;
@@ -114,10 +119,8 @@ const ContextProvider = (props) => {
                 }
                 setResultData(formatted);
                 
-                // Faster delay for better streaming effect
-                if (i % 3 === 0) { // Update every 3 characters for smoother performance
-                    await new Promise(resolve => setTimeout(resolve, 10));
-                }
+                // Delay for visible streaming effect
+                await new Promise(resolve => setTimeout(resolve, 15)); // 15ms per character
             }
             console.log('[STREAMING] Complete');
 
@@ -136,8 +139,8 @@ const ContextProvider = (props) => {
         } catch (error) {
             console.error("Error in onSent:", error);
             setResultData("Unable to connect to Prat.AI server. Please ensure the backend is running.");
-        } finally {
             setLoading(false);
+        } finally {
             setIsStreaming(false);
         }
     };
@@ -302,7 +305,8 @@ const ContextProvider = (props) => {
         loadHistory,
         isStreaming,
         streamMessage,
-        resetConversationHistory
+        resetConversationHistory,
+        attachedPDFInfo
     };
 
     return (
