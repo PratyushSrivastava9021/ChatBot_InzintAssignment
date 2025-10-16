@@ -56,7 +56,16 @@ const Main = () => {
       formData.append('file', file);
       
       setUploadProgress(50);
-      const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api').replace('/api', '');
+      // Use same logic as api.js for consistent URL detection
+      let apiUrl;
+      if (import.meta.env.VITE_API_URL) {
+        apiUrl = import.meta.env.VITE_API_URL;
+      } else if (window.location.hostname === 'chat-bot-inzint-assignment.vercel.app') {
+        apiUrl = 'https://chatbot-inzintassignment.onrender.com/api';
+      } else {
+        apiUrl = 'http://localhost:8000/api';
+      }
+      const baseUrl = apiUrl.replace('/api', '');
       const response = await fetch(`${baseUrl}/api/process-pdf`, {
         method: 'POST',
         body: formData,

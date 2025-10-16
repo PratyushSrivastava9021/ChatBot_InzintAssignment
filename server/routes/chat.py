@@ -153,4 +153,11 @@ async def chat(request: ChatRequest):
         )
     except Exception as e:
         print(f"Chat error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # Return a friendly fallback response instead of HTTP error
+        return ChatResponse(
+            response="Sorry, I encountered an error. I'm Prat.AI, your hybrid AI assistant. Please try asking something else!",
+            intent="error",
+            confidence=1.0,
+            sentiment="neutral",
+            response_type="error_fallback"
+        )
