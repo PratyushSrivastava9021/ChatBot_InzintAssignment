@@ -55,7 +55,8 @@ const Main = () => {
       formData.append('file', file);
       
       setUploadProgress(50);
-      const response = await fetch(`${window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://your-backend-url.render.com'}/api/process-pdf`, {
+      const baseUrl = import.meta.env.VITE_API_URL.replace('/api', '');
+      const response = await fetch(`${baseUrl}/api/process-pdf`, {
         method: 'POST',
         body: formData,
       });
