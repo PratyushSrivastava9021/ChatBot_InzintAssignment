@@ -28,9 +28,9 @@ const Sidebar = () => {
                 </div>
 
                 {extend ? (
-                    <div className="flex flex-col overflow-y-auto max-h-[calc(100vh-280px)] pr-2" style={{ scrollbarWidth: 'thin', scrollbarColor: '#374151 transparent' }}>
+                    <div className="flex flex-col overflow-y-auto max-h-[calc(100vh-280px)] pr-2 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
                         <p className="text-sm text-gray-400 mb-3 ml-2 font-semibold">Chat History</p>
-                        {chatHistory.slice(-10).reverse().map((chat, index) => {
+                        {chatHistory.slice().reverse().map((chat, index) => {
                             return (
                                 <div
                                     key={chat.id || index}
