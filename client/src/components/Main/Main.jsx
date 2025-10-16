@@ -7,6 +7,8 @@ const Main = () => {
   const { onSent, recentPrompt, showResult, loading, resultData, setInput, input, errorMsg, showAbout, setShowAbout, isStreaming } = useContext(Context);
   const [attachedPDF, setAttachedPDF] = useState(null);
   const [pdfContent, setPdfContent] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const sarcasticMessages = [
     "Oh, it's you again. What now?",
@@ -37,24 +39,60 @@ const Main = () => {
   };
 
   const handlePDFUpload = async (file) => {
-    if (!file || file.type !== 'application/pdf') return;
+    if (!file || file.type !== 'application/pdf') {
+      alert('Please upload a valid PDF file.');
+      return;
+    }
+    
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File size must be less than 10MB.');
+      return;
+    }
     
     try {
+      setUploadProgress(10);
       const formData = new FormData();
       formData.append('file', file);
       
+      setUploadProgress(50);
       const response = await fetch('http://localhost:8000/api/process-pdf', {
         method: 'POST',
         body: formData,
       });
       
+      setUploadProgress(80);
       if (response.ok) {
         const result = await response.json();
         setAttachedPDF(file);
         setPdfContent(result.content);
+        setUploadProgress(100);
+        setTimeout(() => setUploadProgress(0), 1000);
+      } else {
+        throw new Error('Upload failed');
       }
     } catch (error) {
       console.error('PDF processing error:', error);
+      alert('Failed to process PDF. Please try again.');
+      setUploadProgress(0);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      handlePDFUpload(files[0]);
     }
   };
 
@@ -154,23 +192,45 @@ const Main = () => {
           )}
           <div className="flex flex-col gap-2">
             {attachedPDF && (
-              <div className="bg-[#2a2a2a] rounded-xl p-3 flex items-center justify-between border border-gray-700">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">📄</span>
-                  <div>
-                    <p className="text-sm text-gray-300">{attachedPDF.name}</p>
-                    <p className="text-xs text-gray-500">{(attachedPDF.size / 1024 / 1024).toFixed(2)} MB</p>
+              <div className="bg-[#2a2a2a] rounded-xl p-4 border border-gray-700 shadow-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-red-500 rounded-lg flex items-center justify-center">
+                      <span className="text-white text-lg font-bold">PDF</span>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-200 truncate max-w-[200px]">{attachedPDF.name}</p>
+                      <p className="text-xs text-gray-500">{(attachedPDF.size / 1024 / 1024).toFixed(2)} MB • Ready to analyze</p>
+                    </div>
                   </div>
+                  <button
+                    onClick={removePDF}
+                    className="w-8 h-8 rounded-full bg-gray-700 hover:bg-red-600 text-gray-400 hover:text-white transition-all flex items-center justify-center"
+                  >
+                    ✕
+                  </button>
                 </div>
-                <button
-                  onClick={removePDF}
-                  className="text-gray-400 hover:text-red-400 transition-colors p-1"
-                >
-                  ✕
-                </button>
+                {uploadProgress > 0 && uploadProgress < 100 && (
+                  <div className="mt-3">
+                    <div className="w-full bg-gray-700 rounded-full h-1">
+                      <div 
+                        className="bg-blue-500 h-1 rounded-full transition-all duration-300" 
+                        style={{width: `${uploadProgress}%`}}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">Processing... {uploadProgress}%</p>
+                  </div>
+                )}
               </div>
             )}
-            <div className="flex items-center gap-3 bg-[#1a1a1a] rounded-2xl p-2 border border-gray-800 shadow-lg">
+            <div 
+              className={`flex items-center gap-3 bg-[#1a1a1a] rounded-2xl p-2 border shadow-lg transition-all relative ${
+                isDragging ? 'border-blue-500 bg-blue-500/10' : 'border-gray-800'
+              }`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
               <input
                 type="file"
                 accept=".pdf"
@@ -178,15 +238,21 @@ const Main = () => {
                 className="hidden"
                 id="pdf-attach"
               />
-              <label htmlFor="pdf-attach" className="p-2 text-gray-400 hover:text-blue-400 cursor-pointer transition-colors">
-                📎
+              <label 
+                htmlFor="pdf-attach" 
+                className="p-2 text-gray-400 hover:text-blue-400 cursor-pointer transition-colors relative group"
+                title="Upload PDF"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                </svg>
               </label>
               <input
                 onChange={(e) => setInput(e.target.value)}
                 value={input}
                 onKeyPress={handleKeyPress}
                 type="text"
-                placeholder={attachedPDF ? `Ask about ${attachedPDF.name}...` : "Ask Prat.AI anything..."}
+                placeholder={attachedPDF ? `Ask about ${attachedPDF.name}...` : isDragging ? "Drop PDF here..." : "Ask Prat.AI anything..."}
                 className="flex-1 bg-transparent py-3 px-2 text-gray-200 text-base outline-none placeholder-gray-500"
               />
               <button
@@ -200,6 +266,17 @@ const Main = () => {
                   <img src={assets.send_icon} alt="Send" className='w-5 h-5' />
                 )}
               </button>
+              {isDragging && !attachedPDF && (
+                <div className="absolute inset-0 bg-blue-500/20 border-2 border-dashed border-blue-500 rounded-2xl flex items-center justify-center backdrop-blur-sm z-10">
+                  <div className="text-center">
+                    <svg className="w-12 h-12 text-blue-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <p className="text-blue-400 font-medium">Drop PDF here</p>
+                    <p className="text-blue-300 text-sm">Max 10MB</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           <p className='text-xs text-gray-600 text-center'>Prat.AI can make mistakes. Verify important information.</p>

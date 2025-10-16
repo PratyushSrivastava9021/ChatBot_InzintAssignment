@@ -16,8 +16,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy app
 COPY . .
 
-# Create directories
-RUN mkdir -p models data/knowledge_base
+# Create directories and copy data
+RUN mkdir -p models data/knowledge_base data/pdf_content
+COPY data/ ./data/
 
 EXPOSE 8000
 
