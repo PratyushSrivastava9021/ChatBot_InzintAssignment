@@ -1,8 +1,17 @@
 // Auto-detect environment and use appropriate API URL
-const isProduction = window.location.hostname !== 'localhost';
-const DYNAMIC_API_URL = import.meta.env.VITE_API_URL || 
-  (isProduction ? 'https://chatbot-inzintassignment.onrender.com/api' : 'http://localhost:8000/api');
+const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+const isVercel = window.location.hostname.includes('vercel.app');
+let DYNAMIC_API_URL;
+if (import.meta.env.VITE_API_URL) {
+  DYNAMIC_API_URL = import.meta.env.VITE_API_URL;
+} else if (window.location.hostname === 'chat-bot-inzint-assignment.vercel.app') {
+  DYNAMIC_API_URL = 'https://chatbot-inzintassignment.onrender.com/api';
+} else {
+  DYNAMIC_API_URL = 'http://localhost:8000/api';
+}
+console.log('Hostname:', window.location.hostname);
 console.log('Environment:', isProduction ? 'Production' : 'Development');
+console.log('Is Vercel:', isVercel);
 console.log('Using API URL:', DYNAMIC_API_URL);
 
 // File size limit (10MB)

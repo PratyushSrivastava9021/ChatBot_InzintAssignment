@@ -28,8 +28,11 @@ app = FastAPI(title="Prat.AI API", version="1.0.0")
 allowed_origins = [
     "http://localhost:5173", 
     "http://localhost:3000",
-    "https://chat-bot-inzint-assignment.vercel.app"
+    "https://chat-bot-inzint-assignment.vercel.app",
+    "https://*.vercel.app"  # Allow all Vercel deployments
 ]
+
+print(f"[INFO] CORS allowed origins: {allowed_origins}")
 
 # Add frontend URL from environment if set
 frontend_url = os.getenv('FRONTEND_URL')
