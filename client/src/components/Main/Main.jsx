@@ -1,9 +1,12 @@
 import React, { useState, useContext, useEffect } from 'react'
 import { assets } from '../../assets/assets'
 import { Context } from '../../context/Context'
+import PDFUpload from '../PDFUpload/PDFUpload'
 
 const Main = () => {
   const { onSent, recentPrompt, showResult, loading, resultData, setInput, input, errorMsg, showAbout, setShowAbout } = useContext(Context);
+  const [attachedPDF, setAttachedPDF] = useState(null);
+  const [pdfContent, setPdfContent] = useState('');
 
   const sarcasticMessages = [
     "Oh, it's you again. What now?",
@@ -25,7 +28,39 @@ const Main = () => {
   }, []);
 
   const handleSend = () => {
-    if (input.trim()) onSent(input);
+    if (input.trim()) {
+      onSent(input, pdfContent);
+      // Clear PDF after sending
+      setAttachedPDF(null);
+      setPdfContent('');
+    }
+  };
+
+  const handlePDFUpload = async (file) => {
+    if (!file || file.type !== 'application/pdf') return;
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetch('http://localhost:8000/api/process-pdf', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        setAttachedPDF(file);
+        setPdfContent(result.content);
+      }
+    } catch (error) {
+      console.error('PDF processing error:', error);
+    }
+  };
+
+  const removePDF = () => {
+    setAttachedPDF(null);
+    setPdfContent('');
   };
 
   const handleKeyPress = (e) => {
@@ -101,26 +136,57 @@ const Main = () => {
           {errorMsg && (
             <p className="text-red-400 text-sm text-center mb-1 bg-red-500/10 py-2 rounded-lg">{errorMsg}</p>
           )}
-          <div className="flex items-center gap-3 bg-[#1a1a1a] rounded-2xl p-2 border border-gray-800 shadow-lg">
-            <input
-              onChange={(e) => setInput(e.target.value)}
-              value={input}
-              onKeyPress={handleKeyPress}
-              type="text"
-              placeholder="Ask Prat.AI anything..."
-              className="flex-1 bg-transparent py-3 px-4 text-gray-200 text-base outline-none placeholder-gray-500"
-            />
-            <button
-              onClick={handleSend}
-              disabled={!input.trim()}
-              className='p-3 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all'
-            >
-              <img src={assets.send_icon} alt="Send" className='w-5 h-5' />
-            </button>
+          <div className="flex flex-col gap-2">
+            {attachedPDF && (
+              <div className="bg-[#2a2a2a] rounded-xl p-3 flex items-center justify-between border border-gray-700">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">📄</span>
+                  <div>
+                    <p className="text-sm text-gray-300">{attachedPDF.name}</p>
+                    <p className="text-xs text-gray-500">{(attachedPDF.size / 1024 / 1024).toFixed(2)} MB</p>
+                  </div>
+                </div>
+                <button
+                  onClick={removePDF}
+                  className="text-gray-400 hover:text-red-400 transition-colors p-1"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+            <div className="flex items-center gap-3 bg-[#1a1a1a] rounded-2xl p-2 border border-gray-800 shadow-lg">
+              <input
+                type="file"
+                accept=".pdf"
+                onChange={(e) => e.target.files[0] && handlePDFUpload(e.target.files[0])}
+                className="hidden"
+                id="pdf-attach"
+              />
+              <label htmlFor="pdf-attach" className="p-2 text-gray-400 hover:text-blue-400 cursor-pointer transition-colors">
+                📎
+              </label>
+              <input
+                onChange={(e) => setInput(e.target.value)}
+                value={input}
+                onKeyPress={handleKeyPress}
+                type="text"
+                placeholder={attachedPDF ? `Ask about ${attachedPDF.name}...` : "Ask Prat.AI anything..."}
+                className="flex-1 bg-transparent py-3 px-2 text-gray-200 text-base outline-none placeholder-gray-500"
+              />
+              <button
+                onClick={handleSend}
+                disabled={!input.trim()}
+                className='p-3 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all'
+              >
+                <img src={assets.send_icon} alt="Send" className='w-5 h-5' />
+              </button>
+            </div>
           </div>
           <p className='text-xs text-gray-600 text-center'>Prat.AI can make mistakes. Verify important information.</p>
         </div>
       </div>
+
+
 
       {showAbout && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
@@ -137,6 +203,7 @@ const Main = () => {
                 <li className='flex items-center gap-2'><span className='text-green-500'>✓</span> Retrieval-Augmented Generation (RAG)</li>
                 <li className='flex items-center gap-2'><span className='text-pink-500'>✓</span> Gemini API for complex reasoning</li>
                 <li className='flex items-center gap-2'><span className='text-yellow-500'>✓</span> Confidence-based hybrid routing</li>
+                <li className='flex items-center gap-2'><span className='text-orange-500'>✓</span> PDF Upload & Query Support</li>
               </ul>
             </div>
             <p className="text-gray-400 text-sm mb-6">

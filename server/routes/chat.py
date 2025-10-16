@@ -38,7 +38,14 @@ try:
 except Exception as e:
     print(f"[WARN] Loading failed, building index: {e}")
     try:
-        embedding_store.build_index()
+        # Build combined index including both knowledge_base and pdf_content
+        kb_dir = BASE_DIR.parent / "data" / "knowledge_base"
+        pdf_dir = BASE_DIR.parent / "data" / "pdf_content"
+        dirs_to_index = [str(kb_dir)]
+        if pdf_dir.exists():
+            dirs_to_index.append(str(pdf_dir))
+        
+        embedding_store.build_combined_index(dirs_to_index)
         embedding_store.save()
         print("[OK] Embedding store built and saved")
     except Exception as build_error:
@@ -52,6 +59,8 @@ except Exception as e:
 
 class ChatRequest(BaseModel):
     message: str
+    pdf_content: str = ""
+    session_id: str = "default"
 
 class ChatResponse(BaseModel):
     response: str
@@ -75,15 +84,20 @@ async def chat(request: ChatRequest):
         sentiment = sentiment_result['sentiment']
         
         # Use Gemini for all queries except very high confidence greetings
-        if confidence >= CONFIDENCE_THRESHOLD and intent in ['greeting', 'goodbye', 'thanks']:
+        if confidence >= CONFIDENCE_THRESHOLD and intent in ['greeting', 'goodbye', 'thanks'] and not request.pdf_content:
             response = random.choice(intent_result['responses'])
             response_type = "ml_local"
         else:
-            # Always try Gemini for knowledge questions
+            # Always try Gemini for knowledge questions or PDF queries
             if gemini_client:
                 try:
-                    context_docs = embedding_store.search(user_message, top_k=2)
+                    context_docs = embedding_store.search(user_message, top_k=3)
                     context = "\n\n".join(context_docs) if context_docs else ""
+                    
+                    # Add PDF content if provided
+                    if request.pdf_content:
+                        context = f"PDF Content:\n{request.pdf_content}\n\n{context}"
+                    
                     response = gemini_client.generate_response(user_message, context)
                     response_type = "llm_gemini"
                 except Exception as gemini_error:
@@ -110,7 +124,9 @@ async def chat(request: ChatRequest):
         response = response.replace("Pratchat", "Prat.AI")
         
         try:
-            log_conversation(user_message, response, intent, confidence, sentiment, response_type)
+            # Log with PDF indicator
+            log_message = f"{user_message} [PDF: Yes]" if request.pdf_content else user_message
+            log_conversation(log_message, response, intent, confidence, sentiment, response_type, request.session_id)
         except Exception as log_error:
             print(f"Logging error: {log_error}")
         

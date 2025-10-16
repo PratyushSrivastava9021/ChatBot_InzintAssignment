@@ -4,7 +4,7 @@ import { Context } from '../../context/Context'
 
 const Sidebar = () => {
     const [extend, setExtend] = useState(false);
-    const { prevPrompts, loadPrompt, newChat } = useContext(Context);
+    const { prevPrompts, loadPrompt, newChat, chatHistory } = useContext(Context);
 
     return (
         <div className={`h-screen flex flex-col justify-between p-4 text-white bg-gradient-to-b from-[#2a2a2a] to-[#1f1f1f] border-r border-gray-700 transition-all duration-300 ease-in-out
@@ -29,16 +29,16 @@ const Sidebar = () => {
 
                 {extend ? (
                     <div className="flex flex-col overflow-y-auto max-h-[calc(100vh-280px)] pr-2" style={{ scrollbarWidth: 'thin', scrollbarColor: '#374151 transparent' }}>
-                        <p className="text-sm text-gray-400 mb-3 ml-2 font-semibold">Recent Chats</p>
-                        {prevPrompts.map((item, index) => {
+                        <p className="text-sm text-gray-400 mb-3 ml-2 font-semibold">Chat History</p>
+                        {chatHistory.slice(-10).reverse().map((chat, index) => {
                             return (
                                 <div
-                                    key={index}
-                                    onClick={() => loadPrompt(item)}
+                                    key={chat.id || index}
+                                    onClick={() => loadPrompt(chat.user_message)}
                                     className="flex items-center gap-3 mb-2 cursor-pointer hover:bg-gray-800/60 p-3 rounded-lg text-sm transition-all border border-transparent hover:border-gray-700"
                                 >
                                     <img src={assets.message_icon} alt="" className="w-5 h-5 opacity-70" />
-                                    <p className="truncate text-gray-300">{item.slice(0, 22)}{item.length > 22 ? '...' : ''}</p>
+                                    <p className="truncate text-gray-300">{chat.user_message.slice(0, 22)}{chat.user_message.length > 22 ? '...' : ''}</p>
                                 </div>
                             );
                         })}

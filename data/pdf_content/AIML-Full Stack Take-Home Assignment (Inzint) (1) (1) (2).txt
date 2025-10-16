@@ -1,0 +1,85 @@
+🚀 AIML / Full Stack Take -Home Assignment  
+Time Limit:  24 Hours  
+Instructions:  
+• Choose only ONE  of the two options below.  
+• Focus on clean code, problem -solving, UI/UX, and clarity of explanation.  
+• Deployment  and video explanation  will fetch bonus points . 
+ 
+✅ Option 1: Full Stack Web App (CRUD Project)  
+Problem Statement:  
+ Design and build a CRUD -based Web Application  to manage a simple task -tracking system. 
+The app should allow users to:  
+• Create  tasks (title, description, due date, priority).  
+• Read/View  task list and details.  
+• Update  existing tasks.  
+• Delete  tasks.  
+Must -Have Requirements:  
+• Frontend (React / Vue / Next.js / any modern framework).  
+• Backend API (Node.js / Django / Flask / FastAPI).  
+• Database integration (MongoDB / PostgreSQL / MySQL).  
+• RESTful API architecture.  
+• Good UI/UX (Minimal yet intuitive).  
+Bonus Points (Optional but recommended):  
+• Deploy your project  (Render / Vercel / Netlify / Railway / AWS).  
+• Add authentication  (simple login/register).  
+• Add task status (Completed / Pending)  filter.  
+• Use TypeScript  or strong typing if applicable.  
+ 
+   
+ 
+   
+  
+ 
+ 
+ 
+✅ Option 2: AI/ML GenAI Chatbot Web App  
+Problem Statement:  
+ Design a simple Generative AI -based Chatbot  web app that can respond to user prompts.  
+Must -Have Requirements:  
+• UI where users can type prompts and receive responses.  
+• Upload PDF and ask and get replies related to PDF.  
+• Backend using any LLM API (OpenAI / Gemini / Cohere / Ollama / HuggingFace, etc).  
+• Build the chatbot pipeline using proper API calls to the model.  
+• Display chatbot responses in a chat -like UI.  
+• Frontend using any modern JS framework (React / Vue / Next.js).  
+• Backend using Flask / FastAPI / Node.js / Django.  
+Bonus Points (Optional but recommended):  
+• Deploy your chatbot web app . 
+• Maintain chat history.  
+• Add conversation reset option . 
+• Use streaming responses  if possible.  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+   
+ 
+   
+  
+ 
+ 
+📹 Mandatory Submission Requirement:  
+• Record a Loom / Screen Recording video  (max 10 mins):  
+o Walk through your project.  
+o Explain your thought process, tech stack, challenges, and solutions.  
+o Demo your working app (even if partially complete).  
+ 
+📦 Submission Checklist:  
+• GitHub repo link (include README with setup instructions).  
+• Loom video link.  
+• Deployed project link (optional but bonus -worthy).  
+ 
+💡 Evaluation Criteria:  
+• Problem -solving approach.  
+• Code quality and structure.  
+• UI/UX quality.  
+• Explanation clarity in Loom video.  
+• Bonus for deployment and extra features.

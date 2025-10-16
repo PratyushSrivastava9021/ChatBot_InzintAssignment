@@ -27,10 +27,37 @@ class EmbeddingStore:
                     docs.append({"filename": filename, "content": content})
         return docs
     
+    def load_from_multiple_dirs(self, dirs):
+        """Load documents from multiple directories"""
+        all_docs = []
+        for dir_path in dirs:
+            if os.path.exists(dir_path):
+                for filename in os.listdir(dir_path):
+                    if filename.endswith('.txt'):
+                        with open(os.path.join(dir_path, filename), 'r', encoding='utf-8') as f:
+                            content = f.read()
+                            all_docs.append({"filename": filename, "content": content, "source": dir_path})
+        return all_docs
+    
     def build_index(self, kb_dir=None):
         if kb_dir is None:
             kb_dir = KB_DIR
         self.documents = self.load_knowledge_base(kb_dir)
+        
+        if not self.documents:
+            return {"status": "no documents found"}
+        
+        texts = [doc['content'] for doc in self.documents]
+        embeddings = self.model.encode(texts)
+        
+        self.index = faiss.IndexFlatL2(self.dimension)
+        self.index.add(np.array(embeddings).astype('float32'))
+        
+        return {"status": "indexed", "documents": len(self.documents)}
+    
+    def build_combined_index(self, dirs):
+        """Build index from multiple directories including PDFs"""
+        self.documents = self.load_from_multiple_dirs(dirs)
         
         if not self.documents:
             return {"status": "no documents found"}
@@ -53,7 +80,12 @@ class EmbeddingStore:
         results = []
         for idx in indices[0]:
             if idx < len(self.documents):
-                results.append(self.documents[idx]['content'])
+                doc = self.documents[idx]
+                # Include source info for PDF content
+                content = doc['content']
+                if 'source' in doc and 'pdf_content' in doc['source']:
+                    content = f"[PDF: {doc['filename']}] {content}"
+                results.append(content)
         
         return results
     
