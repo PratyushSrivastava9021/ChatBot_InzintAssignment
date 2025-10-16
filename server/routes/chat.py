@@ -24,13 +24,15 @@ try:
     intent_classifier.load()
     print("[OK] Intent classifier loaded")
 except Exception as e:
-    print(f"[WARN] Loading failed, training new model: {e}")
-    try:
-        intent_classifier.train()
-        intent_classifier.save()
-        print("[OK] Intent classifier trained and saved")
-    except Exception as train_error:
-        print(f"[ERROR] Training failed: {train_error}")
+    print(f"[WARN] Loading failed, using fallback mode: {e}")
+    # Create minimal fallback responses
+    intent_classifier.intent_responses = {
+        'greeting': ['Hello! I am Prat.AI, your hybrid AI assistant.'],
+        'goodbye': ['Goodbye! Have a great day!'],
+        'thanks': ['You\'re welcome!'],
+        'identity': ['I am Prat.AI, an India\'s Indigenous hybrid AI assistant created by Pratyush Srivastava under PratWare — Multiverse of Softwares.']
+    }
+    print("[OK] Fallback responses initialized")
 
 try:
     embedding_store.load()
@@ -70,7 +72,22 @@ async def chat(request: ChatRequest):
     try:
         user_message = request.message
         
-        intent_result = intent_classifier.predict(user_message)
+        # Handle prediction with fallback
+        try:
+            intent_result = intent_classifier.predict(user_message)
+        except:
+            # Fallback prediction based on keywords
+            message_lower = user_message.lower()
+            if any(word in message_lower for word in ['hello', 'hi', 'hey']):
+                intent_result = {'intent': 'greeting', 'confidence': 0.9, 'responses': intent_classifier.intent_responses.get('greeting', [])}
+            elif any(word in message_lower for word in ['bye', 'goodbye']):
+                intent_result = {'intent': 'goodbye', 'confidence': 0.9, 'responses': intent_classifier.intent_responses.get('goodbye', [])}
+            elif any(word in message_lower for word in ['thank', 'thanks']):
+                intent_result = {'intent': 'thanks', 'confidence': 0.9, 'responses': intent_classifier.intent_responses.get('thanks', [])}
+            elif any(word in message_lower for word in ['who are you', 'what are you', 'your name']):
+                intent_result = {'intent': 'identity', 'confidence': 0.9, 'responses': intent_classifier.intent_responses.get('identity', [])}
+            else:
+                intent_result = {'intent': 'unknown', 'confidence': 0.1, 'responses': []}
         sentiment_result = analyze_sentiment(user_message)
         
         intent = intent_result['intent']
@@ -79,7 +96,8 @@ async def chat(request: ChatRequest):
         
         # Use Gemini for all queries except very high confidence greetings
         if confidence >= CONFIDENCE_THRESHOLD and intent in ['greeting', 'goodbye', 'thanks'] and not request.pdf_content:
-            response = random.choice(intent_result['responses'])
+            responses = intent_result.get('responses', intent_classifier.intent_responses.get(intent, ['Hello!']))
+            response = random.choice(responses)
             response_type = "ml_local"
         else:
             # Always try Gemini for knowledge questions or PDF queries
@@ -97,16 +115,18 @@ async def chat(request: ChatRequest):
                 except Exception as gemini_error:
                     print(f"Gemini error: {gemini_error}")
                     # Fallback to ML response if available
-                    if intent_result['responses']:
-                        response = random.choice(intent_result['responses'])
+                    responses = intent_result.get('responses', intent_classifier.intent_responses.get(intent, []))
+                    if responses:
+                        response = random.choice(responses)
                         response_type = "ml_fallback"
                     else:
                         response = "I'm having trouble connecting to my knowledge base. Please try again."
                         response_type = "error"
             else:
                 # No Gemini - use ML or fallback
-                if intent_result['responses']:
-                    response = random.choice(intent_result['responses'])
+                responses = intent_result.get('responses', intent_classifier.intent_responses.get(intent, []))
+                if responses:
+                    response = random.choice(responses)
                     response_type = "ml_local"
                 else:
                     response = "I need Gemini API to answer complex questions. Please configure GEMINI_API_KEY in server/.env"
