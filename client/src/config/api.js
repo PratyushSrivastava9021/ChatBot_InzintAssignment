@@ -1,4 +1,8 @@
-const DYNAMIC_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+// Auto-detect environment and use appropriate API URL
+const isProduction = window.location.hostname !== 'localhost';
+const DYNAMIC_API_URL = import.meta.env.VITE_API_URL || 
+  (isProduction ? 'https://chatbot-inzintassignment.onrender.com/api' : 'http://localhost:8000/api');
+console.log('Environment:', isProduction ? 'Production' : 'Development');
 console.log('Using API URL:', DYNAMIC_API_URL);
 
 // File size limit (10MB)

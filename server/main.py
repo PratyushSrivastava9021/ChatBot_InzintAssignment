@@ -27,7 +27,8 @@ app = FastAPI(title="Prat.AI API", version="1.0.0")
 # Get allowed origins from environment
 allowed_origins = [
     "http://localhost:5173", 
-    "http://localhost:3000"
+    "http://localhost:3000",
+    "https://chat-bot-inzint-assignment.vercel.app"
 ]
 
 # Add frontend URL from environment if set
