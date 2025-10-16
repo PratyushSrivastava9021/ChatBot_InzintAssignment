@@ -1,0 +1,12 @@
+Pratyush - Creator of Prat.AI
+
+Pratyush is a software developer and AI enthusiast who created Prat.AI as part of PratWare — Multiverse of Softwares initiative.
+
+Vision:
+To build indigenous AI solutions that are transparent, explainable, and accessible to developers. Prat.AI demonstrates how hybrid ML+LLM systems can be built using open-source tools and modern APIs.
+
+PratWare:
+PratWare — Multiverse of Softwares is Pratyush's initiative to create innovative software solutions that blend traditional programming with cutting-edge AI technologies.
+
+Approach:
+Pratyush believes in building AI systems that developers can understand, customize, and control. Prat.AI embodies this philosophy by combining interpretable ML models with powerful LLM capabilities.

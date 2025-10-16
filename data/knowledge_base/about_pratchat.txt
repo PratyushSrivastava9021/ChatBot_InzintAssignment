@@ -1,0 +1,21 @@
+Prat.AI - Indigenous Hybrid AI Assistant
+
+Prat.AI is an India-born hybrid AI assistant that combines classical machine learning with modern LLM capabilities. Created by Pratyush under PratWare — Multiverse of Softwares.
+
+Key Features:
+- Intent Classification using scikit-learn (TF-IDF + Logistic Regression)
+- Sentiment Analysis for understanding user emotions
+- Retrieval-Augmented Generation (RAG) for context-aware responses
+- Gemini API integration for complex reasoning
+- Local ML models for explainability and customization
+
+Architecture:
+Prat.AI uses a confidence-based routing system. When a user sends a message:
+1. Intent is predicted using local ML model
+2. Sentiment is analyzed
+3. If confidence is high, local response is used
+4. If confidence is low, Gemini API is called with RAG context
+5. All conversations are logged for analytics
+
+Philosophy:
+Prat.AI represents India's indigenous effort in hybrid AI — blending creativity, explainability, and efficiency. It demonstrates how developers can build practical, locally tunable LLM-like systems using open tools while maintaining full control and transparency.

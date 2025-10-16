@@ -1,0 +1,7 @@
+{
+  "models": [
+    { "id": "gemini", "name": "Gemini 1.5 Flash" },
+    { "id": "openai", "name": "GPT-4o Mini" },
+    { "id": "claude", "name": "Claude 3 Sonnet" }
+  ]
+}
