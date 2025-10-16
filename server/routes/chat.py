@@ -38,14 +38,8 @@ try:
 except Exception as e:
     print(f"[WARN] Loading failed, building index: {e}")
     try:
-        # Build combined index including both knowledge_base and pdf_content
         kb_dir = BASE_DIR.parent / "data" / "knowledge_base"
-        pdf_dir = BASE_DIR.parent / "data" / "pdf_content"
-        dirs_to_index = [str(kb_dir)]
-        if pdf_dir.exists():
-            dirs_to_index.append(str(pdf_dir))
-        
-        embedding_store.build_combined_index(dirs_to_index)
+        embedding_store.build_index(str(kb_dir))
         embedding_store.save()
         print("[OK] Embedding store built and saved")
     except Exception as build_error:
