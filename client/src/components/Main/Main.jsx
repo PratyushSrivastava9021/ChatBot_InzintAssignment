@@ -4,7 +4,7 @@ import { Context } from '../../context/Context'
 import PDFUpload from '../PDFUpload/PDFUpload'
 
 const Main = () => {
-  const { onSent, recentPrompt, showResult, loading, resultData, setInput, input, errorMsg, showAbout, setShowAbout, isStreaming } = useContext(Context);
+  const { onSent, recentPrompt, showResult, loading, resultData, setInput, input, errorMsg, showAbout, setShowAbout, isStreaming, newChat, resetConversationHistory } = useContext(Context);
   const [attachedPDF, setAttachedPDF] = useState(null);
   const [pdfContent, setPdfContent] = useState('');
   const [isDragging, setIsDragging] = useState(false);
@@ -31,7 +31,8 @@ const Main = () => {
 
   const handleSend = () => {
     if (input.trim()) {
-      onSent(input, pdfContent);
+      const message = input.trim();
+      onSent(message, pdfContent);
       // Clear PDF after sending
       setAttachedPDF(null);
       setPdfContent('');
@@ -55,7 +56,7 @@ const Main = () => {
       formData.append('file', file);
       
       setUploadProgress(50);
-      const baseUrl = import.meta.env.VITE_API_URL.replace('/api', '');
+      const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api').replace('/api', '');
       const response = await fetch(`${baseUrl}/api/process-pdf`, {
         method: 'POST',
         body: formData,
@@ -102,8 +103,9 @@ const Main = () => {
     setPdfContent('');
   };
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter') {
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
       handleSend();
     }
   };
@@ -116,6 +118,16 @@ const Main = () => {
           <span className='text-xs bg-gradient-to-r from-blue-600 to-purple-600 px-2 py-1 rounded-full'>Hybrid AI</span>
         </div>
         <div className='flex items-center gap-3'>
+          <button 
+            onClick={() => {
+              if (window.confirm('Clear current conversation?')) {
+                newChat();
+              }
+            }}
+            className='text-sm text-gray-400 hover:text-red-400 transition-colors px-3 py-1 rounded-lg hover:bg-gray-800'
+          >
+            Clear
+          </button>
           <button onClick={() => setShowAbout(true)} className='text-sm text-gray-400 hover:text-white transition-colors'>About</button>
           <img className='w-10 h-10 rounded-full border-2 border-gray-800' src={assets.user} alt="User Icon" />
         </div>
@@ -126,7 +138,22 @@ const Main = () => {
           <div className="max-w-[700px] mx-auto pb-20 space-y-6">
             <div className='flex items-start gap-5 p-5 rounded-xl bg-gray-900/30'>
               <img className='w-11 h-11 rounded-full' src={assets.user} alt="User Icon" />
-              <p className='text-white text-2xl font-normal leading-relaxed pt-1'>{recentPrompt}</p>
+              <div className='flex-1'>
+                {attachedPDF && (
+                  <div className="mb-3 p-3 bg-gray-800/50 rounded-lg border border-gray-700">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-red-500 rounded flex items-center justify-center">
+                        <span className="text-white text-xs font-bold">PDF</span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-200">{attachedPDF.name}</p>
+                        <p className="text-xs text-gray-400">{(attachedPDF.size / 1024 / 1024).toFixed(2)} MB</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <p className='text-white text-2xl font-normal leading-relaxed pt-1'>{recentPrompt}</p>
+              </div>
             </div>
             <div className='flex items-start gap-5 p-6 rounded-xl bg-gray-900/50'>
               <img className='w-11 h-11 rounded-lg' src={assets.gemini_icon} alt="AI Icon" />
@@ -139,7 +166,7 @@ const Main = () => {
                         <div className='w-2 h-2 bg-purple-500 rounded-full animate-bounce' style={{animationDelay: '0.1s'}}></div>
                         <div className='w-2 h-2 bg-pink-500 rounded-full animate-bounce' style={{animationDelay: '0.2s'}}></div>
                       </div>
-                      <span className='text-gray-400 text-sm'>Prat.AI is typing...</span>
+                      <span className='text-gray-400 text-sm'>Thinking...</span>
                     </div>
                   ) : (
                     <>
@@ -153,7 +180,7 @@ const Main = () => {
                 <div className='text-white text-2xl font-normal flex-1' style={{ lineHeight: '1.75', letterSpacing: '0.01em' }}>
                   <div dangerouslySetInnerHTML={{ __html: resultData }}></div>
                   {isStreaming && (
-                    <span className='inline-block w-2 h-6 bg-blue-500 animate-pulse ml-1'></span>
+                    <span className='inline-block w-1 h-6 bg-blue-500 animate-pulse ml-1 rounded-sm'></span>
                   )}
                 </div>
               )}
@@ -251,7 +278,7 @@ const Main = () => {
               <input
                 onChange={(e) => setInput(e.target.value)}
                 value={input}
-                onKeyPress={handleKeyPress}
+                onKeyDown={handleKeyDown}
                 type="text"
                 placeholder={attachedPDF ? `Ask about ${attachedPDF.name}...` : isDragging ? "Drop PDF here..." : "Ask Prat.AI anything..."}
                 className="flex-1 bg-transparent py-3 px-2 text-gray-200 text-base outline-none placeholder-gray-500"

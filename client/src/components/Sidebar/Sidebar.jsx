@@ -20,15 +20,11 @@ const Sidebar = () => {
                 </div>
 
                 <div
-                    onClick={() => {
-                        if (window.confirm('Are you sure you want to reset the conversation? This will clear all chat history.')) {
-                            newChat();
-                        }
-                    }}
+                    onClick={newChat}
                     className="flex items-center gap-4 mb-6 cursor-pointer bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 p-3 rounded-xl transition-all shadow-lg"
                 >
                     <img src={assets.plus_icon} alt="" className="w-6 h-6" />
-                    {extend && <p className="font-semibold">Reset Chat</p>}
+                    {extend && <p className="font-semibold">New Chat</p>}
                 </div>
 
                 {extend ? (

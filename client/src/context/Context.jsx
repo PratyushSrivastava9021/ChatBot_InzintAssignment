@@ -3,6 +3,13 @@ import { sendMessage, getChatHistory, resetConversation } from '../config/api';
 
 export const Context = createContext();
 
+// Utility function to decode HTML entities
+const decodeHtmlEntities = (str) => {
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = str;
+    return textarea.value;
+};
+
 const ContextProvider = (props) => {
     const [input, setInput] = useState("");
     const [recentPrompt, setRecentPrompt] = useState("");
@@ -46,7 +53,7 @@ const ContextProvider = (props) => {
         }
     }, [historyLoaded]);
 
-    const onSent = async (prompt, pdfContent = '', useStreaming = true) => {
+    const onSent = async (prompt, pdfContent = '') => {
         setErrorMsg("");
 
         if (!prompt || prompt.trim() === "") {
@@ -54,28 +61,36 @@ const ContextProvider = (props) => {
             return;
         }
 
+        // Clear input immediately
+        setInput("");
         setResultData("");
         setLoading(true);
         setShowResult(true);
-        setIsStreaming(useStreaming);
+        setIsStreaming(true);
 
         setPrevPrompts(prev => [...prev, prompt]);
         setRecentPrompt(prompt);
 
         try {
-            if (useStreaming) {
+            // Always try streaming first
+            try {
                 await streamMessage(prompt, sessionId);
-            } else {
+            } catch (streamError) {
+                console.log('Streaming failed, falling back to regular API:', streamError);
+                // Fallback to regular API with simulated streaming
                 const response = await sendMessage(prompt, pdfContent, sessionId);
-                let formattedResponse = response.response;
+                
+                // Simulate streaming effect word by word
+                const words = response.response.split(' ');
+                let currentText = '';
+                
+                for (let i = 0; i < words.length; i++) {
+                    currentText += words[i] + ' ';
+                    const formatted = currentText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+                    setResultData(formatted);
+                    await new Promise(resolve => setTimeout(resolve, 50)); // 50ms delay per word
+                }
 
-                formattedResponse = formattedResponse.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
-                formattedResponse = formattedResponse.split('\n\n').map(paragraph => {
-                    if (paragraph.trim() === '') return '';
-                    return `<p>${paragraph.replace(/\n/g, '<br/>')}</p>`;
-                }).join('');
-
-                setResultData(formattedResponse);
                 setChatHistory(prev => [...prev, {
                     user_message: prompt,
                     bot_response: response.response,
@@ -88,13 +103,13 @@ const ContextProvider = (props) => {
         } finally {
             setLoading(false);
             setIsStreaming(false);
-            setInput("");
         }
     };
 
     const streamMessage = async (prompt, sessionId) => {
         try {
-            const baseUrl = import.meta.env.VITE_API_URL.replace('/api', '');
+            console.log('[STREAM] Starting stream for:', prompt);
+            const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api').replace('/api', '');
             const response = await fetch(`${baseUrl}/api/stream`, {
                 method: 'POST',
                 headers: {
@@ -106,42 +121,63 @@ const ContextProvider = (props) => {
                 })
             });
 
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             let streamedContent = '';
 
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
+            try {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
 
-                const chunk = decoder.decode(value);
-                const lines = chunk.split('\n');
+                    const chunk = decoder.decode(value, { stream: true });
+                    const lines = chunk.split('\n');
 
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        try {
-                            const data = JSON.parse(line.slice(6));
-                            if (data.content) {
-                                streamedContent += data.content;
-                                const formatted = streamedContent.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
-                                setResultData(formatted);
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const jsonStr = line.slice(6).trim();
+                            if (jsonStr && jsonStr !== '[DONE]') {
+                                try {
+                                    // Decode HTML entities and clean up
+                                    let cleanStr = decodeHtmlEntities(jsonStr);
+                                    // Remove trailing newlines and extra characters
+                                    cleanStr = cleanStr.replace(/\n+/g, '').trim();
+                                    // Find the first complete JSON object
+                                    const match = cleanStr.match(/^\{.*?\}/);
+                                    if (match) {
+                                        const data = JSON.parse(match[0]);
+                                        
+                                        if (data.content) {
+                                            streamedContent += data.content;
+                                            const formatted = streamedContent.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+                                            setResultData(formatted);
+                                        }
+                                        
+                                        if (data.done) {
+                                            setChatHistory(prev => [...prev, {
+                                                user_message: prompt,
+                                                bot_response: streamedContent.trim(),
+                                                timestamp: new Date().toISOString()
+                                            }]);
+                                            return;
+                                        }
+                                    }
+                                } catch (e) {
+                                    // Skip malformed JSON
+                                }
                             }
-                            if (data.done) {
-                                setChatHistory(prev => [...prev, {
-                                    user_message: prompt,
-                                    bot_response: streamedContent.trim(),
-                                    timestamp: new Date().toISOString()
-                                }]);
-                                break;
-                            }
-                        } catch (e) {
-                            console.error('Parse error:', e);
                         }
                     }
                 }
+            } finally {
+                reader.releaseLock();
             }
         } catch (error) {
-            console.error('Streaming error:', error);
+            console.error('[STREAM] Error:', error);
             throw error;
         }
     };
@@ -156,7 +192,19 @@ const ContextProvider = (props) => {
         }
     }
 
-    const newChat = async () => {
+    const newChat = () => {
+        // Only clear UI state, keep database history
+        setLoading(false);
+        setShowResult(false);
+        setRecentPrompt("");
+        setInput("");
+        setResultData("");
+        setErrorMsg("");
+        setIsStreaming(false);
+        // Don't clear chatHistory - keep it for sidebar
+    }
+
+    const resetConversationHistory = async () => {
         try {
             await resetConversation(sessionId);
             setLoading(false);
@@ -200,7 +248,8 @@ const ContextProvider = (props) => {
         chatHistory,
         loadHistory,
         isStreaming,
-        streamMessage
+        streamMessage,
+        resetConversationHistory
     };
 
     return (
