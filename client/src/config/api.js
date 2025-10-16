@@ -1,4 +1,5 @@
 const DYNAMIC_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+console.log('Using API URL:', DYNAMIC_API_URL);
 
 // File size limit (10MB)
 export const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -21,7 +22,14 @@ export const sendMessage = async (message, pdfContent = '', sessionId = 'default
     return data;
   } catch (error) {
     console.error("API Error:", error);
-    throw error;
+    // Fallback response when backend is unavailable
+    return {
+      response: "Sorry, I'm currently offline. Please deploy the backend or run locally.",
+      intent: "error",
+      confidence: 1.0,
+      sentiment: "neutral",
+      response_type: "fallback"
+    };
   }
 };
 
