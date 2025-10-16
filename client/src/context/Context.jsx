@@ -72,31 +72,44 @@ const ContextProvider = (props) => {
         setRecentPrompt(prompt);
 
         try {
-            // Always try streaming first
-            try {
-                await streamMessage(prompt, sessionId);
-            } catch (streamError) {
-                console.log('Streaming failed, falling back to regular API:', streamError);
-                // Fallback to regular API with simulated streaming
-                const response = await sendMessage(prompt, pdfContent, sessionId);
+            // Use regular API with simulated streaming for reliability
+            const response = await sendMessage(prompt, pdfContent, sessionId);
+            
+            // Simulate streaming effect character by character for smooth ChatGPT-like experience
+            const text = response.response;
+            let currentText = '';
+            console.log('[STREAMING] Starting character-by-character display, length:', text.length);
+            
+            for (let i = 0; i < text.length; i++) {
+                currentText += text[i];
+                let formatted = currentText
+                    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold">$1</strong>')
+                    .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
+                    .replace(/^# (.*$)/gm, '<h1 class="text-2xl font-bold mb-4 mt-6 text-blue-400">$1</h1>')
+                    .replace(/^## (.*$)/gm, '<h2 class="text-xl font-semibold mb-3 mt-5 text-green-400">$1</h2>')
+                    .replace(/^### (.*$)/gm, '<h3 class="text-lg font-medium mb-2 mt-4 text-purple-400">$1</h3>')
+                    .replace(/^- (.*$)/gm, '<li class="ml-4 mb-1 list-disc">$1</li>')
+                    .replace(/\n\n/g, '</p><p class="mb-3">')
+                    .replace(/\n/g, '<br/>')
+                    .replace(/`([^`]+)`/g, '<code class="bg-gray-800 px-2 py-1 rounded text-sm font-mono text-green-300">$1</code>');
                 
-                // Simulate streaming effect word by word
-                const words = response.response.split(' ');
-                let currentText = '';
-                
-                for (let i = 0; i < words.length; i++) {
-                    currentText += words[i] + ' ';
-                    const formatted = currentText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
-                    setResultData(formatted);
-                    await new Promise(resolve => setTimeout(resolve, 50)); // 50ms delay per word
+                if (!formatted.includes('<h1>') && !formatted.includes('<h2>') && !formatted.includes('<p>')) {
+                    formatted = `<p class="mb-3">${formatted}</p>`;
                 }
-
-                setChatHistory(prev => [...prev, {
-                    user_message: prompt,
-                    bot_response: response.response,
-                    timestamp: new Date().toISOString()
-                }]);
+                setResultData(formatted);
+                
+                // Faster delay for better streaming effect
+                if (i % 3 === 0) { // Update every 3 characters for smoother performance
+                    await new Promise(resolve => setTimeout(resolve, 10));
+                }
             }
+            console.log('[STREAMING] Complete');
+
+            setChatHistory(prev => [...prev, {
+                user_message: prompt,
+                bot_response: response.response,
+                timestamp: new Date().toISOString()
+            }]);
         } catch (error) {
             console.error("Error in onSent:", error);
             setResultData("Unable to connect to Prat.AI server. Please ensure the backend is running.");
@@ -107,88 +120,81 @@ const ContextProvider = (props) => {
     };
 
     const streamMessage = async (prompt, sessionId) => {
-        try {
-            console.log('[STREAM] Starting stream for:', prompt);
-            // Use same logic as api.js for consistent URL detection
-            const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
-            let apiUrl;
-            if (import.meta.env.VITE_API_URL) {
-                apiUrl = import.meta.env.VITE_API_URL;
-            } else if (window.location.hostname === 'chat-bot-inzint-assignment.vercel.app') {
-                apiUrl = 'https://chatbot-inzintassignment.onrender.com/api';
-            } else {
-                apiUrl = 'http://localhost:8000/api';
-            }
-            const baseUrl = apiUrl.replace('/api', '');
-            const response = await fetch(`${baseUrl}/api/stream`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    message: prompt,
-                    session_id: sessionId
-                })
-            });
+        console.log('[STREAM] Starting stream for:', prompt);
+        
+        // Get API URL
+        let apiUrl;
+        if (import.meta.env.VITE_API_URL) {
+            apiUrl = import.meta.env.VITE_API_URL;
+        } else if (window.location.hostname === 'chat-bot-inzint-assignment.vercel.app') {
+            apiUrl = 'https://chatbot-inzintassignment.onrender.com/api';
+        } else {
+            apiUrl = 'http://localhost:8000/api';
+        }
+        
+        console.log('[STREAM] Using API URL:', apiUrl);
+        
+        const response = await fetch(`${apiUrl}/stream`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: prompt, session_id: sessionId })
+        });
 
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let streamedContent = '';
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let streamedContent = '';
 
-            try {
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
 
-                    const chunk = decoder.decode(value, { stream: true });
-                    const lines = chunk.split('\n');
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
 
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            const jsonStr = line.slice(6).trim();
-                            if (jsonStr && jsonStr !== '[DONE]') {
-                                try {
-                                    // Decode HTML entities and clean up
-                                    let cleanStr = decodeHtmlEntities(jsonStr);
-                                    // Remove trailing newlines and extra characters
-                                    cleanStr = cleanStr.replace(/\n+/g, '').trim();
-                                    // Find the first complete JSON object
-                                    const match = cleanStr.match(/^\{.*?\}/);
-                                    if (match) {
-                                        const data = JSON.parse(match[0]);
-                                        
-                                        if (data.content) {
-                                            streamedContent += data.content;
-                                            const formatted = streamedContent.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
-                                            setResultData(formatted);
-                                        }
-                                        
-                                        if (data.done) {
-                                            setChatHistory(prev => [...prev, {
-                                                user_message: prompt,
-                                                bot_response: streamedContent.trim(),
-                                                timestamp: new Date().toISOString()
-                                            }]);
-                                            return;
-                                        }
-                                    }
-                                } catch (e) {
-                                    // Skip malformed JSON
-                                }
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    try {
+                        const data = JSON.parse(line.slice(6));
+                        
+                        if (data.content) {
+                            streamedContent += data.content;
+                            
+                            // Format with markdown
+                            let formatted = streamedContent
+                                .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold">$1</strong>')
+                                .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
+                                .replace(/^# (.*$)/gm, '<h1 class="text-2xl font-bold mb-4 mt-6 text-blue-400">$1</h1>')
+                                .replace(/^## (.*$)/gm, '<h2 class="text-xl font-semibold mb-3 mt-5 text-green-400">$1</h2>')
+                                .replace(/^### (.*$)/gm, '<h3 class="text-lg font-medium mb-2 mt-4 text-purple-400">$1</h3>')
+                                .replace(/^- (.*$)/gm, '<li class="ml-4 mb-1 list-disc">$1</li>')
+                                .replace(/\n\n/g, '</p><p class="mb-3">')
+                                .replace(/\n/g, '<br/>')
+                                .replace(/`([^`]+)`/g, '<code class="bg-gray-800 px-2 py-1 rounded text-sm font-mono text-green-300">$1</code>');
+                            
+                            if (!formatted.includes('<h1>') && !formatted.includes('<h2>') && !formatted.includes('<p>')) {
+                                formatted = `<p class="mb-3">${formatted}</p>`;
                             }
+                            
+                            setResultData(formatted);
                         }
+                        
+                        if (data.done) {
+                            setChatHistory(prev => [...prev, {
+                                user_message: prompt,
+                                bot_response: streamedContent.trim(),
+                                timestamp: new Date().toISOString()
+                            }]);
+                            return;
+                        }
+                    } catch (e) {
+                        console.log('[STREAM] Parse error:', e);
                     }
                 }
-            } finally {
-                reader.releaseLock();
             }
-        } catch (error) {
-            console.error('[STREAM] Error:', error);
-            throw error;
         }
     };
 

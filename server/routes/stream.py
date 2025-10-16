@@ -76,20 +76,19 @@ async def generate_stream(message: str, session_id: str):
         response = response.replace("PratChat", "Prat.AI").replace("pratchat", "Prat.AI").replace("Pratchat", "Prat.AI")
         print(f"[STREAM] Response: {response[:50]}...")
         
-        # Stream response word by word
-        words = response.split()
+        # Stream response character by character for better effect
         streamed_response = ""
         
-        for i, word in enumerate(words):
-            streamed_response += word + " "
+        for char in response:
+            streamed_response += char
             
             chunk = {
-                "content": word + " ",
+                "content": char,
                 "done": False
             }
             
             yield f"data: {json.dumps(chunk)}\n\n"
-            await asyncio.sleep(0.08)  # 80ms delay per word
+            await asyncio.sleep(0.02)  # 20ms delay per character
         
         # Send completion signal
         final_chunk = {

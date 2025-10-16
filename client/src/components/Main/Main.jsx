@@ -144,7 +144,7 @@ const Main = () => {
 
       <div className='flex-grow overflow-y-auto px-4 py-4 pt-10' style={{ scrollbarWidth: 'thin', scrollbarColor: '#374151 #000' }}>
         {showResult ? (
-          <div className="max-w-[700px] mx-auto pb-20 space-y-6">
+          <div className="max-w-[900px] mx-auto pb-20 space-y-6">
             <div className='flex items-start gap-5 p-5 rounded-xl bg-gray-900/30'>
               <img className='w-11 h-11 rounded-full' src={assets.user} alt="User Icon" />
               <div className='flex-1'>
@@ -223,7 +223,7 @@ const Main = () => {
       </div>
 
       <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black via-black to-transparent">
-        <div className="w-[700px] max-w-[90%] mx-auto flex flex-col gap-2">
+        <div className="w-[900px] max-w-[90%] mx-auto flex flex-col gap-2">
           {errorMsg && (
             <p className="text-red-400 text-sm text-center mb-1 bg-red-500/10 py-2 rounded-lg">{errorMsg}</p>
           )}
