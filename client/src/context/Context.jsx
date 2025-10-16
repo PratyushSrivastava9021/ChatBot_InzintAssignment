@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect } from 'react';
-import { sendMessage, getChatHistory } from '../config/api';
+import { sendMessage, sendMessageStream, getChatHistory } from '../config/api';
 
 export const Context = createContext();
 
@@ -21,6 +21,7 @@ const ContextProvider = (props) => {
     });
     const [chatHistory, setChatHistory] = useState([]);
     const [historyLoaded, setHistoryLoaded] = useState(false);
+    const [currentConversationId, setCurrentConversationId] = useState(null);
 
     const loadHistory = async () => {
         try {
@@ -56,42 +57,82 @@ const ContextProvider = (props) => {
         setResultData("");
         setLoading(true);
         setShowResult(true);
+        setInput("");
 
         setPrevPrompts(prev => [...prev, prompt]);
         setRecentPrompt(prompt);
 
+        // Use existing conversation_id or create from first message
+        let conversationId = currentConversationId;
+        if (!conversationId) {
+            conversationId = `conv_${sessionId}_${prompt.slice(0, 20).replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}`;
+            setCurrentConversationId(conversationId);
+        }
+
+        let streamedResponse = "";
+        let responseMetadata = {};
+
         try {
-            const response = await sendMessage(prompt, pdfContent, sessionId);
-            let formattedResponse = response.response;
-
-            formattedResponse = formattedResponse.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
-            formattedResponse = formattedResponse.split('\n\n').map(paragraph => {
-                if (paragraph.trim() === '') return '';
-                return `<p>${paragraph.replace(/\n/g, '<br/>')}</p>`;
-            }).join('');
-
-            setResultData(formattedResponse);
-            setChatHistory(prev => [...prev, {
-                user_message: prompt,
-                bot_response: response.response,
-                timestamp: new Date().toISOString()
-            }]);
+            await sendMessageStream(
+                prompt,
+                pdfContent,
+                sessionId,
+                conversationId,
+                // onChunk
+                (chunk, responseType, metadata) => {
+                    if (metadata) {
+                        responseMetadata = metadata;
+                        return;
+                    }
+                    streamedResponse += chunk;
+                    let formattedResponse = streamedResponse.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+                    formattedResponse = formattedResponse.split('\n\n').map(paragraph => {
+                        if (paragraph.trim() === '') return '';
+                        return `<p>${paragraph.replace(/\n/g, '<br/>')}</p>`;
+                    }).join('');
+                    setResultData(formattedResponse);
+                },
+                // onComplete
+                (fullResponse, responseType, returnedConvId) => {
+                    let formattedResponse = fullResponse.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+                    formattedResponse = formattedResponse.split('\n\n').map(paragraph => {
+                        if (paragraph.trim() === '') return '';
+                        return `<p>${paragraph.replace(/\n/g, '<br/>')}</p>`;
+                    }).join('');
+                    setResultData(formattedResponse);
+                    setChatHistory(prev => [...prev, {
+                        user_message: prompt,
+                        bot_response: fullResponse,
+                        timestamp: new Date().toISOString(),
+                        conversation_id: conversationId,
+                        has_pdf: !!pdfContent,
+                        pdf_name: pdfContent ? 'Attached PDF' : null
+                    }]);
+                    setLoading(false);
+                },
+                // onError
+                (error) => {
+                    console.error("Error in onSent:", error);
+                    setResultData("Unable to connect to Prat.AI server. Please ensure the backend is running.");
+                    setLoading(false);
+                }
+            );
         } catch (error) {
             console.error("Error in onSent:", error);
             setResultData("Unable to connect to Prat.AI server. Please ensure the backend is running.");
-        } finally {
             setLoading(false);
-            setInput("");
         }
     };
 
     const loadPrompt = (prompt) => {
         const chat = chatHistory.find(c => c.user_message === prompt);
         if (chat) {
+            setLoading(false);
             setRecentPrompt(chat.user_message);
             const formattedResponse = chat.bot_response.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').split('\n\n').map(p => p.trim() === '' ? '' : `<p>${p.replace(/\n/g, '<br/>')}</p>`).join('');
             setResultData(formattedResponse);
             setShowResult(true);
+            setCurrentConversationId(chat.conversation_id);
         }
     }
 
@@ -102,10 +143,7 @@ const ContextProvider = (props) => {
         setInput("");
         setResultData("");
         setErrorMsg("");
-        setChatHistory([]);
-        const newId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        localStorage.setItem('prat_ai_session_id', newId);
-        window.location.reload();
+        setCurrentConversationId(null);
     }
 
     const contextValue = {

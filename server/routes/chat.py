@@ -1,8 +1,11 @@
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import random
 import os
 import sys
+import json
+import asyncio
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -61,6 +64,7 @@ class ChatRequest(BaseModel):
     message: str
     pdf_content: str = ""
     session_id: str = "default"
+    conversation_id: str = None
 
 class ChatResponse(BaseModel):
     response: str
@@ -68,11 +72,115 @@ class ChatResponse(BaseModel):
     confidence: float
     sentiment: str
     response_type: str
+    conversation_id: str = None
 
 CONFIDENCE_THRESHOLD = 0.85
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
+    return await _chat_logic(request)
+
+@router.post("/chat/stream")
+async def chat_stream(request: ChatRequest):
+    async def generate():
+        try:
+            user_message = request.message
+            
+            intent_result = intent_classifier.predict(user_message)
+            sentiment_result = analyze_sentiment(user_message)
+            
+            intent = intent_result['intent']
+            confidence = intent_result['confidence']
+            sentiment = sentiment_result['sentiment']
+            
+            # Send metadata first
+            metadata = {
+                "type": "metadata",
+                "intent": intent,
+                "confidence": confidence,
+                "sentiment": sentiment
+            }
+            yield f"data: {json.dumps(metadata)}\n\n"
+            
+            # Use Gemini for all queries except very high confidence greetings
+            if confidence >= CONFIDENCE_THRESHOLD and intent in ['greeting', 'goodbye', 'thanks'] and not request.pdf_content:
+                response = random.choice(intent_result['responses'])
+                response_type = "ml_local"
+                
+                # Stream the response character by character
+                for i, char in enumerate(response):
+                    chunk = {
+                        "type": "chunk",
+                        "content": char,
+                        "response_type": response_type
+                    }
+                    yield f"data: {json.dumps(chunk)}\n\n"
+                    await asyncio.sleep(0.02)
+            else:
+                if gemini_client:
+                    try:
+                        context_docs = embedding_store.search(user_message, top_k=3)
+                        context = "\n\n".join(context_docs) if context_docs else ""
+                        
+                        if request.pdf_content:
+                            context = f"PDF Content:\n{request.pdf_content}\n\n{context}"
+                        
+                        response = gemini_client.generate_response(user_message, context)
+                        response_type = "llm_gemini"
+                    except Exception as gemini_error:
+                        print(f"Gemini error: {gemini_error}")
+                        if intent_result['responses']:
+                            response = random.choice(intent_result['responses'])
+                            response_type = "ml_fallback"
+                        else:
+                            response = "I'm having trouble connecting to my knowledge base. Please try again."
+                            response_type = "error"
+                else:
+                    if intent_result['responses']:
+                        response = random.choice(intent_result['responses'])
+                        response_type = "ml_local"
+                    else:
+                        response = "I need Gemini API to answer complex questions. Please configure GEMINI_API_KEY in server/.env"
+                        response_type = "fallback"
+                
+                response = response.replace("PratChat", "Prat.AI")
+                response = response.replace("pratchat", "Prat.AI")
+                response = response.replace("Pratchat", "Prat.AI")
+                
+                for i, char in enumerate(response):
+                    chunk = {
+                        "type": "chunk",
+                        "content": char,
+                        "response_type": response_type
+                    }
+                    yield f"data: {json.dumps(chunk)}\n\n"
+                    await asyncio.sleep(0.02)
+            
+            try:
+                log_message = f"{user_message} [PDF: Yes]" if request.pdf_content else user_message
+                conversation_id = log_conversation(log_message, response, intent, confidence, sentiment, response_type, request.session_id, request.conversation_id)
+            except Exception as log_error:
+                print(f"Logging error: {log_error}")
+                conversation_id = None
+            
+            completion = {
+                "type": "complete",
+                "full_response": response,
+                "response_type": response_type,
+                "conversation_id": conversation_id
+            }
+            yield f"data: {json.dumps(completion)}\n\n"
+                
+        except Exception as e:
+            error_chunk = {
+                "type": "error",
+                "content": str(e)
+            }
+            yield f"data: {json.dumps(error_chunk)}\n\n"
+    
+    return StreamingResponse(generate(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "Connection": "keep-alive"})
+
+async def _chat_logic(request: ChatRequest):
     try:
         user_message = request.message
         
@@ -126,16 +234,18 @@ async def chat(request: ChatRequest):
         try:
             # Log with PDF indicator
             log_message = f"{user_message} [PDF: Yes]" if request.pdf_content else user_message
-            log_conversation(log_message, response, intent, confidence, sentiment, response_type, request.session_id)
+            conversation_id = log_conversation(log_message, response, intent, confidence, sentiment, response_type, request.session_id, request.conversation_id)
         except Exception as log_error:
             print(f"Logging error: {log_error}")
+            conversation_id = None
         
         return ChatResponse(
             response=response,
             intent=intent,
             confidence=confidence,
             sentiment=sentiment,
-            response_type=response_type
+            response_type=response_type,
+            conversation_id=conversation_id
         )
     except Exception as e:
         print(f"Chat error: {e}")

@@ -6,10 +6,10 @@ import Main from './components/Main/Main'
 
 const App = () => {
   return (
-    <>  
+    <div className="flex h-screen w-screen overflow-hidden">
       <Sidebar />
       <Main />
-    </>
+    </div>
   )
 }
 

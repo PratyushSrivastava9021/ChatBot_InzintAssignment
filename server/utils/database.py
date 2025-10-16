@@ -14,6 +14,7 @@ class Conversation(Base):
     
     id = Column(Integer, primary_key=True)
     session_id = Column(String(255), nullable=False, default='default')
+    conversation_id = Column(String(255), nullable=False)
     user_message = Column(Text, nullable=False)
     bot_response = Column(Text, nullable=False)
     intent = Column(String(100))
@@ -37,11 +38,16 @@ def init_db():
         print(f"[ERROR] Database initialization failed: {e}")
         raise
 
-def log_conversation(user_msg, bot_response, intent, confidence, sentiment, response_type, session_id='default'):
+def log_conversation(user_msg, bot_response, intent, confidence, sentiment, response_type, session_id='default', conversation_id=None):
     db = SessionLocal()
     try:
+        # Only create new conversation_id if none provided
+        if not conversation_id:
+            conversation_id = f"conv_{session_id}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S_%f')}"
+        
         conv = Conversation(
             session_id=session_id,
+            conversation_id=conversation_id,
             user_message=user_msg,
             bot_response=bot_response,
             intent=intent,
@@ -51,7 +57,8 @@ def log_conversation(user_msg, bot_response, intent, confidence, sentiment, resp
         )
         db.add(conv)
         db.commit()
-        print(f"[OK] Logged conversation to NeonDB for session: {session_id}")
+        print(f"[OK] Logged conversation to NeonDB for session: {session_id}, conv: {conversation_id}")
+        return conversation_id
     except Exception as e:
         print(f"[ERROR] Logging to NeonDB failed: {e}")
         db.rollback()
@@ -68,6 +75,7 @@ def get_chat_history(session_id='default', limit=50):
         
         result = [{
             'id': conv.id,
+            'conversation_id': conv.conversation_id,
             'user_message': conv.user_message,
             'bot_response': conv.bot_response,
             'intent': conv.intent,

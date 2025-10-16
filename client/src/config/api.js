@@ -3,14 +3,14 @@ const API_BASE_URL = "http://localhost:8000/api";
 // File size limit (10MB)
 export const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
-export const sendMessage = async (message, pdfContent = '', sessionId = 'default') => {
+export const sendMessage = async (message, pdfContent = '', sessionId = 'default', conversationId = null) => {
   try {
     const response = await fetch(`${API_BASE_URL}/chat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ message, pdf_content: pdfContent, session_id: sessionId }),
+      body: JSON.stringify({ message, pdf_content: pdfContent, session_id: sessionId, conversation_id: conversationId }),
     });
 
     if (!response.ok) {
@@ -103,5 +103,55 @@ export const uploadPDF = async (file) => {
   } catch (error) {
     console.error("PDF Upload API Error:", error);
     throw error;
+  }
+};
+export const sendMessageStream = async (message, pdfContent = '', sessionId = 'default', conversationId = null, onChunk, onComplete, onError) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/chat/stream`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ message, pdf_content: pdfContent, session_id: sessionId, conversation_id: conversationId }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.type === 'chunk') {
+              onChunk(data.content, data.response_type);
+            } else if (data.type === 'metadata') {
+              onChunk('', '', data);
+            } else if (data.type === 'complete') {
+              onComplete(data.full_response, data.response_type, data.conversation_id);
+            } else if (data.type === 'error') {
+              onError(new Error(data.content));
+            }
+          } catch (e) {
+            console.error('Parse error:', e);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Stream API Error:", error);
+    onError(error);
   }
 };

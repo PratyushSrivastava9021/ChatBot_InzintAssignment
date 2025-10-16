@@ -4,7 +4,7 @@ import { Context } from '../../context/Context'
 import PDFUpload from '../PDFUpload/PDFUpload'
 
 const Main = () => {
-  const { onSent, recentPrompt, showResult, loading, resultData, setInput, input, errorMsg, showAbout, setShowAbout } = useContext(Context);
+  const { onSent, recentPrompt, showResult, loading, resultData, setInput, input, errorMsg, showAbout, setShowAbout, chatHistory } = useContext(Context);
   const [attachedPDF, setAttachedPDF] = useState(null);
   const [pdfContent, setPdfContent] = useState('');
 
@@ -29,10 +29,9 @@ const Main = () => {
 
   const handleSend = () => {
     if (input.trim()) {
-      onSent(input, pdfContent);
-      // Clear PDF after sending
-      setAttachedPDF(null);
-      setPdfContent('');
+      const message = input.trim();
+      onSent(message, pdfContent);
+      // Keep PDF for conversation continuity
     }
   };
 
@@ -70,7 +69,7 @@ const Main = () => {
   };
 
   return (
-    <div className='bg-black w-screen h-screen flex flex-col justify-between text-white relative'>
+    <div className='bg-black flex-1 flex flex-col text-white relative overflow-hidden'>
       <div className='flex justify-between items-center p-4 border-b border-gray-900'>
         <div className='flex items-center gap-3'>
           <p className='text-2xl font-extrabold'>Prat.AI</p>
@@ -82,20 +81,45 @@ const Main = () => {
         </div>
       </div>
 
-      <div className='flex-grow overflow-y-auto px-4 py-4 pt-10' style={{ scrollbarWidth: 'thin', scrollbarColor: '#374151 #000' }}>
+      <div className='flex-1 overflow-y-auto px-4 py-4' style={{ scrollbarWidth: 'thin', scrollbarColor: '#374151 #000' }}>
         {showResult ? (
-          <div className="max-w-[700px] mx-auto pb-20 space-y-6">
+          <div className="max-w-4xl mx-auto pb-4 space-y-6 px-4">
             <div className='flex items-start gap-5 p-5 rounded-xl bg-gray-900/30'>
               <img className='w-11 h-11 rounded-full' src={assets.user} alt="User Icon" />
-              <p className='text-white text-2xl font-normal leading-relaxed pt-1'>{recentPrompt}</p>
+              <div className='flex-1'>
+                {(() => {
+                  const currentChat = chatHistory.find(c => c.user_message === recentPrompt);
+                  return currentChat?.has_pdf && (
+                    <div className='mb-3 bg-gray-800/50 rounded-lg p-3 border border-gray-700'>
+                      <div className='flex items-center gap-2'>
+                        <span className='text-xl'>📄</span>
+                        <span className='text-sm text-gray-300'>PDF Document</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+                <p className='text-white text-2xl font-normal leading-relaxed'>{recentPrompt}</p>
+              </div>
             </div>
             <div className='flex items-start gap-5 p-6 rounded-xl bg-gray-900/50'>
               <img className='w-11 h-11 rounded-lg' src={assets.gemini_icon} alt="AI Icon" />
               {loading ? (
-                <div className='w-full flex flex-col gap-3'>
-                  <div className='bg-gray-800 h-5 rounded-full animate-pulse' />
-                  <div className='bg-gray-800 h-5 w-5/6 rounded-full animate-pulse' />
-                  <div className='bg-gray-800 h-5 w-4/6 rounded-full animate-pulse' />
+                <div className='text-white text-2xl font-normal flex-1' style={{ lineHeight: '1.75', letterSpacing: '0.01em' }}>
+                  {resultData ? (
+                    <div className='relative'>
+                      <span dangerouslySetInnerHTML={{ __html: resultData }}></span>
+                      <span className='inline w-0.5 h-6 bg-white animate-pulse'></span>
+                    </div>
+                  ) : (
+                    <div className='flex items-center gap-2'>
+                      <div className='flex gap-1'>
+                        <div className='w-2 h-2 bg-gray-400 rounded-full animate-bounce' style={{animationDelay: '0ms'}}></div>
+                        <div className='w-2 h-2 bg-gray-400 rounded-full animate-bounce' style={{animationDelay: '150ms'}}></div>
+                        <div className='w-2 h-2 bg-gray-400 rounded-full animate-bounce' style={{animationDelay: '300ms'}}></div>
+                      </div>
+                      <span className='text-gray-400 text-sm'>Thinking...</span>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className='text-white text-2xl font-normal flex-1' style={{ lineHeight: '1.75', letterSpacing: '0.01em' }}>
@@ -131,8 +155,8 @@ const Main = () => {
         )}
       </div>
 
-      <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black via-black to-transparent">
-        <div className="w-[700px] max-w-[90%] mx-auto flex flex-col gap-2">
+      <div className="p-4 bg-gradient-to-t from-black via-black to-transparent">
+        <div className="max-w-4xl w-full mx-auto flex flex-col gap-2">
           {errorMsg && (
             <p className="text-red-400 text-sm text-center mb-1 bg-red-500/10 py-2 rounded-lg">{errorMsg}</p>
           )}

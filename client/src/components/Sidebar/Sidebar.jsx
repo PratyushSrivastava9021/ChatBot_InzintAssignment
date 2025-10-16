@@ -7,7 +7,7 @@ const Sidebar = () => {
     const { prevPrompts, loadPrompt, newChat, chatHistory } = useContext(Context);
 
     return (
-        <div className={`h-screen flex flex-col justify-between p-4 text-white bg-gradient-to-b from-[#2a2a2a] to-[#1f1f1f] border-r border-gray-700 transition-all duration-300 ease-in-out
+        <div className={`h-full flex flex-col justify-between p-4 text-white bg-gradient-to-b from-[#2a2a2a] to-[#1f1f1f] border-r border-gray-700 transition-all duration-300 ease-in-out
             ${extend ? 'w-72' : 'w-[75px]'}`}>
 
             <div>
@@ -30,7 +30,7 @@ const Sidebar = () => {
                 {extend ? (
                     <div className="flex flex-col overflow-y-auto max-h-[calc(100vh-280px)] pr-2" style={{ scrollbarWidth: 'thin', scrollbarColor: '#374151 transparent' }}>
                         <p className="text-sm text-gray-400 mb-3 ml-2 font-semibold">Chat History</p>
-                        {chatHistory.slice(-10).reverse().map((chat, index) => {
+                        {chatHistory.slice(-20).reverse().map((chat, index) => {
                             return (
                                 <div
                                     key={chat.id || index}
