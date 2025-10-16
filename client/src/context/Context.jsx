@@ -11,12 +11,32 @@ const decodeHtmlEntities = (str) => {
 };
 
 const ContextProvider = (props) => {
+    // Initialize state from localStorage to prevent flicker
+    const getInitialState = () => {
+        try {
+            const saved = localStorage.getItem('prat_ai_last_state');
+            if (saved) {
+                const state = JSON.parse(saved);
+                return {
+                    showResult: state.showResult || false,
+                    recentPrompt: state.recentPrompt || "",
+                    resultData: state.resultData || ""
+                };
+            }
+        } catch (e) {
+            console.error('Error loading saved state:', e);
+        }
+        return { showResult: false, recentPrompt: "", resultData: "" };
+    };
+    
+    const initialState = getInitialState();
+    
     const [input, setInput] = useState("");
-    const [recentPrompt, setRecentPrompt] = useState("");
+    const [recentPrompt, setRecentPrompt] = useState(initialState.recentPrompt);
     const [prevPrompts, setPrevPrompts] = useState([]);
-    const [showResult, setShowResult] = useState(false);
+    const [showResult, setShowResult] = useState(initialState.showResult);
     const [loading, setLoading] = useState(false);
-    const [resultData, setResultData] = useState("");
+    const [resultData, setResultData] = useState(initialState.resultData);
     const [errorMsg, setErrorMsg] = useState("");
     const [isStreaming, setIsStreaming] = useState(false);
     const [showAbout, setShowAbout] = useState(false);
@@ -34,12 +54,7 @@ const ContextProvider = (props) => {
         try {
             const history = await getChatHistory(sessionId);
             setChatHistory(history);
-            if (history.length > 0) {
-                const lastChat = history[history.length - 1];
-                setRecentPrompt(lastChat.user_message);
-                setResultData(lastChat.bot_response.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').split('\n\n').map(p => p.trim() === '' ? '' : `<p>${p.replace(/\n/g, '<br/>')}</p>`).join(''));
-                setShowResult(true);
-            }
+            // State already initialized from localStorage, no need to restore again
             setHistoryLoaded(true);
         } catch (error) {
             console.error('History load error:', error);
@@ -78,11 +93,12 @@ const ContextProvider = (props) => {
             // Simulate streaming effect character by character for smooth ChatGPT-like experience
             const text = response.response;
             let currentText = '';
+            let formatted = '';
             console.log('[STREAMING] Starting character-by-character display, length:', text.length);
             
             for (let i = 0; i < text.length; i++) {
                 currentText += text[i];
-                let formatted = currentText
+                formatted = currentText
                     .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold">$1</strong>')
                     .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
                     .replace(/^# (.*$)/gm, '<h1 class="text-2xl font-bold mb-4 mt-6 text-blue-400">$1</h1>')
@@ -110,6 +126,13 @@ const ContextProvider = (props) => {
                 bot_response: response.response,
                 timestamp: new Date().toISOString()
             }]);
+            
+            // Save current state
+            localStorage.setItem('prat_ai_last_state', JSON.stringify({
+                showResult: true,
+                recentPrompt: prompt,
+                resultData: formatted
+            }));
         } catch (error) {
             console.error("Error in onSent:", error);
             setResultData("Unable to connect to Prat.AI server. Please ensure the backend is running.");
@@ -205,6 +228,13 @@ const ContextProvider = (props) => {
             const formattedResponse = chat.bot_response.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').split('\n\n').map(p => p.trim() === '' ? '' : `<p>${p.replace(/\n/g, '<br/>')}</p>`).join('');
             setResultData(formattedResponse);
             setShowResult(true);
+            
+            // Save state when clicking sidebar chat
+            localStorage.setItem('prat_ai_last_state', JSON.stringify({
+                showResult: true,
+                recentPrompt: chat.user_message,
+                resultData: formattedResponse
+            }));
         }
     }
 
@@ -217,6 +247,13 @@ const ContextProvider = (props) => {
         setResultData("");
         setErrorMsg("");
         setIsStreaming(false);
+        
+        // Save new chat state
+        localStorage.setItem('prat_ai_last_state', JSON.stringify({
+            showResult: false,
+            recentPrompt: "",
+            resultData: ""
+        }));
         // Don't clear chatHistory - keep it for sidebar
     }
 
