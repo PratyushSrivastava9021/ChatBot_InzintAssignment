@@ -109,7 +109,17 @@ const ContextProvider = (props) => {
     const streamMessage = async (prompt, sessionId) => {
         try {
             console.log('[STREAM] Starting stream for:', prompt);
-            const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api').replace('/api', '');
+            // Use same logic as api.js for consistent URL detection
+            const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+            let apiUrl;
+            if (import.meta.env.VITE_API_URL) {
+                apiUrl = import.meta.env.VITE_API_URL;
+            } else if (window.location.hostname === 'chat-bot-inzint-assignment.vercel.app') {
+                apiUrl = 'https://chatbot-inzintassignment.onrender.com/api';
+            } else {
+                apiUrl = 'http://localhost:8000/api';
+            }
+            const baseUrl = apiUrl.replace('/api', '');
             const response = await fetch(`${baseUrl}/api/stream`, {
                 method: 'POST',
                 headers: {
