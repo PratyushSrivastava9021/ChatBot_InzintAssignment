@@ -18,6 +18,8 @@ from routes.stats import router as stats_router
 from routes.pdf import router as pdf_router
 from routes.process_pdf import router as process_pdf_router
 from routes.history import router as history_router
+from routes.reset import router as reset_router
+from routes.stream import router as stream_router
 from utils.database import init_db
 
 app = FastAPI(title="Prat.AI API", version="1.0.0")
@@ -44,6 +46,8 @@ app.include_router(stats_router, prefix="/api")
 app.include_router(pdf_router, prefix="/api")
 app.include_router(process_pdf_router, prefix="/api")
 app.include_router(history_router, prefix="/api")
+app.include_router(reset_router, prefix="/api")
+app.include_router(stream_router, prefix="/api")
 
 @app.get("/")
 async def root():

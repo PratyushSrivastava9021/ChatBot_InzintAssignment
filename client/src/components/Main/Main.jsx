@@ -4,7 +4,7 @@ import { Context } from '../../context/Context'
 import PDFUpload from '../PDFUpload/PDFUpload'
 
 const Main = () => {
-  const { onSent, recentPrompt, showResult, loading, resultData, setInput, input, errorMsg, showAbout, setShowAbout } = useContext(Context);
+  const { onSent, recentPrompt, showResult, loading, resultData, setInput, input, errorMsg, showAbout, setShowAbout, isStreaming } = useContext(Context);
   const [attachedPDF, setAttachedPDF] = useState(null);
   const [pdfContent, setPdfContent] = useState('');
 
@@ -93,13 +93,29 @@ const Main = () => {
               <img className='w-11 h-11 rounded-lg' src={assets.gemini_icon} alt="AI Icon" />
               {loading ? (
                 <div className='w-full flex flex-col gap-3'>
-                  <div className='bg-gray-800 h-5 rounded-full animate-pulse' />
-                  <div className='bg-gray-800 h-5 w-5/6 rounded-full animate-pulse' />
-                  <div className='bg-gray-800 h-5 w-4/6 rounded-full animate-pulse' />
+                  {isStreaming ? (
+                    <div className='flex items-center gap-2'>
+                      <div className='flex space-x-1'>
+                        <div className='w-2 h-2 bg-blue-500 rounded-full animate-bounce'></div>
+                        <div className='w-2 h-2 bg-purple-500 rounded-full animate-bounce' style={{animationDelay: '0.1s'}}></div>
+                        <div className='w-2 h-2 bg-pink-500 rounded-full animate-bounce' style={{animationDelay: '0.2s'}}></div>
+                      </div>
+                      <span className='text-gray-400 text-sm'>Prat.AI is typing...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className='bg-gray-800 h-5 rounded-full animate-pulse' />
+                      <div className='bg-gray-800 h-5 w-5/6 rounded-full animate-pulse' />
+                      <div className='bg-gray-800 h-5 w-4/6 rounded-full animate-pulse' />
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className='text-white text-2xl font-normal flex-1' style={{ lineHeight: '1.75', letterSpacing: '0.01em' }}>
                   <div dangerouslySetInnerHTML={{ __html: resultData }}></div>
+                  {isStreaming && (
+                    <span className='inline-block w-2 h-6 bg-blue-500 animate-pulse ml-1'></span>
+                  )}
                 </div>
               )}
             </div>
@@ -175,10 +191,14 @@ const Main = () => {
               />
               <button
                 onClick={handleSend}
-                disabled={!input.trim()}
+                disabled={!input.trim() || loading}
                 className='p-3 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all'
               >
-                <img src={assets.send_icon} alt="Send" className='w-5 h-5' />
+                {loading ? (
+                  <div className='w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin'></div>
+                ) : (
+                  <img src={assets.send_icon} alt="Send" className='w-5 h-5' />
+                )}
               </button>
             </div>
           </div>

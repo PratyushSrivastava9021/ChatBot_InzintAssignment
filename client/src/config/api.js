@@ -105,3 +105,21 @@ export const uploadPDF = async (file) => {
     throw error;
   }
 };
+
+export const resetConversation = async (sessionId = 'default') => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/reset?session_id=${sessionId}`, {
+      method: "DELETE",
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Reset API Error:", error);
+    throw error;
+  }
+};

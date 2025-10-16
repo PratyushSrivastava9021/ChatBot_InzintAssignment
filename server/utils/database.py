@@ -85,6 +85,21 @@ def get_chat_history(session_id='default', limit=50):
     finally:
         db.close()
 
+def clear_conversation_history(session_id='default'):
+    db = SessionLocal()
+    try:
+        count = db.query(Conversation).filter(Conversation.session_id == session_id).count()
+        db.query(Conversation).filter(Conversation.session_id == session_id).delete()
+        db.commit()
+        print(f"[OK] Cleared {count} conversations for session: {session_id}")
+        return count
+    except Exception as e:
+        print(f"[ERROR] Clear history failed: {e}")
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
 def get_stats():
     db = SessionLocal()
     try:

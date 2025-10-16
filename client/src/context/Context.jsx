@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect } from 'react';
-import { sendMessage, getChatHistory } from '../config/api';
+import { sendMessage, getChatHistory, resetConversation } from '../config/api';
 
 export const Context = createContext();
 
@@ -11,6 +11,7 @@ const ContextProvider = (props) => {
     const [loading, setLoading] = useState(false);
     const [resultData, setResultData] = useState("");
     const [errorMsg, setErrorMsg] = useState("");
+    const [isStreaming, setIsStreaming] = useState(false);
     const [showAbout, setShowAbout] = useState(false);
     const [sessionId] = useState(() => {
         const stored = localStorage.getItem('prat_ai_session_id');
@@ -45,7 +46,7 @@ const ContextProvider = (props) => {
         }
     }, [historyLoaded]);
 
-    const onSent = async (prompt, pdfContent = '') => {
+    const onSent = async (prompt, pdfContent = '', useStreaming = true) => {
         setErrorMsg("");
 
         if (!prompt || prompt.trim() === "") {
@@ -56,32 +57,91 @@ const ContextProvider = (props) => {
         setResultData("");
         setLoading(true);
         setShowResult(true);
+        setIsStreaming(useStreaming);
 
         setPrevPrompts(prev => [...prev, prompt]);
         setRecentPrompt(prompt);
 
         try {
-            const response = await sendMessage(prompt, pdfContent, sessionId);
-            let formattedResponse = response.response;
+            if (useStreaming) {
+                await streamMessage(prompt, sessionId);
+            } else {
+                const response = await sendMessage(prompt, pdfContent, sessionId);
+                let formattedResponse = response.response;
 
-            formattedResponse = formattedResponse.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
-            formattedResponse = formattedResponse.split('\n\n').map(paragraph => {
-                if (paragraph.trim() === '') return '';
-                return `<p>${paragraph.replace(/\n/g, '<br/>')}</p>`;
-            }).join('');
+                formattedResponse = formattedResponse.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+                formattedResponse = formattedResponse.split('\n\n').map(paragraph => {
+                    if (paragraph.trim() === '') return '';
+                    return `<p>${paragraph.replace(/\n/g, '<br/>')}</p>`;
+                }).join('');
 
-            setResultData(formattedResponse);
-            setChatHistory(prev => [...prev, {
-                user_message: prompt,
-                bot_response: response.response,
-                timestamp: new Date().toISOString()
-            }]);
+                setResultData(formattedResponse);
+                setChatHistory(prev => [...prev, {
+                    user_message: prompt,
+                    bot_response: response.response,
+                    timestamp: new Date().toISOString()
+                }]);
+            }
         } catch (error) {
             console.error("Error in onSent:", error);
             setResultData("Unable to connect to Prat.AI server. Please ensure the backend is running.");
         } finally {
             setLoading(false);
+            setIsStreaming(false);
             setInput("");
+        }
+    };
+
+    const streamMessage = async (prompt, sessionId) => {
+        try {
+            const response = await fetch('http://localhost:8000/api/stream', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    message: prompt,
+                    session_id: sessionId
+                })
+            });
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let streamedContent = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value);
+                const lines = chunk.split('\n');
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const data = JSON.parse(line.slice(6));
+                            if (data.content) {
+                                streamedContent += data.content;
+                                const formatted = streamedContent.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+                                setResultData(formatted);
+                            }
+                            if (data.done) {
+                                setChatHistory(prev => [...prev, {
+                                    user_message: prompt,
+                                    bot_response: streamedContent.trim(),
+                                    timestamp: new Date().toISOString()
+                                }]);
+                                break;
+                            }
+                        } catch (e) {
+                            console.error('Parse error:', e);
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Streaming error:', error);
+            throw error;
         }
     };
 
@@ -95,17 +155,29 @@ const ContextProvider = (props) => {
         }
     }
 
-    const newChat = () => {
-        setLoading(false);
-        setShowResult(false);
-        setRecentPrompt("");
-        setInput("");
-        setResultData("");
-        setErrorMsg("");
-        setChatHistory([]);
-        const newId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        localStorage.setItem('prat_ai_session_id', newId);
-        window.location.reload();
+    const newChat = async () => {
+        try {
+            await resetConversation(sessionId);
+            setLoading(false);
+            setShowResult(false);
+            setRecentPrompt("");
+            setInput("");
+            setResultData("");
+            setErrorMsg("");
+            setChatHistory([]);
+            setIsStreaming(false);
+        } catch (error) {
+            console.error('Reset error:', error);
+            // Fallback to local reset
+            setLoading(false);
+            setShowResult(false);
+            setRecentPrompt("");
+            setInput("");
+            setResultData("");
+            setErrorMsg("");
+            setChatHistory([]);
+            setIsStreaming(false);
+        }
     }
 
     const contextValue = {
@@ -125,7 +197,9 @@ const ContextProvider = (props) => {
         setShowAbout,
         sessionId,
         chatHistory,
-        loadHistory
+        loadHistory,
+        isStreaming,
+        streamMessage
     };
 
     return (
