@@ -4,7 +4,7 @@ import { Context } from '../../context/Context'
 import PDFUpload from '../PDFUpload/PDFUpload'
 
 const Main = () => {
-  const { onSent, recentPrompt, showResult, loading, resultData, setInput, input, errorMsg, showAbout, setShowAbout, chatHistory } = useContext(Context);
+  const { onSent, recentPrompt, showResult, loading, resultData, setInput, input, errorMsg, showAbout, setShowAbout, chatHistory, resetConversation } = useContext(Context);
   const [attachedPDF, setAttachedPDF] = useState(null);
   const [pdfContent, setPdfContent] = useState('');
 
@@ -76,6 +76,14 @@ const Main = () => {
           <span className='text-xs bg-gradient-to-r from-blue-600 to-purple-600 px-2 py-1 rounded-full'>Hybrid AI</span>
         </div>
         <div className='flex items-center gap-3'>
+          {showResult && (
+            <button 
+              onClick={resetConversation}
+              className='text-sm bg-red-600 hover:bg-red-700 px-3 py-1 rounded-lg transition-colors'
+            >
+              Reset
+            </button>
+          )}
           <button onClick={() => setShowAbout(true)} className='text-sm text-gray-400 hover:text-white transition-colors'>About</button>
           <img className='w-10 h-10 rounded-full border-2 border-gray-800' src={assets.user} alt="User Icon" />
         </div>

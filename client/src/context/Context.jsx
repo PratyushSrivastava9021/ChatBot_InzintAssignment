@@ -109,6 +109,15 @@ const ContextProvider = (props) => {
                         pdf_name: pdfContent ? 'Attached PDF' : null
                     }]);
                     setLoading(false);
+                    // Refresh from database to update sidebar
+                    setTimeout(async () => {
+                        try {
+                            const freshHistory = await getChatHistory(sessionId);
+                            setChatHistory(freshHistory);
+                        } catch (error) {
+                            console.error('Error refreshing history:', error);
+                        }
+                    }, 500);
                 },
                 // onError
                 (error) => {
@@ -146,6 +155,23 @@ const ContextProvider = (props) => {
         setCurrentConversationId(null);
     }
 
+    const resetConversation = async () => {
+        setLoading(false);
+        setShowResult(false);
+        setRecentPrompt("");
+        setInput("");
+        setResultData("");
+        setErrorMsg("");
+        setCurrentConversationId(null);
+        // Fetch fresh data from database
+        try {
+            const freshHistory = await getChatHistory(sessionId);
+            setChatHistory(freshHistory);
+        } catch (error) {
+            console.error('Error refreshing history:', error);
+        }
+    }
+
     const contextValue = {
         input,
         setInput,
@@ -159,6 +185,7 @@ const ContextProvider = (props) => {
         resultData,
         errorMsg,
         newChat,
+        resetConversation,
         showAbout,
         setShowAbout,
         sessionId,

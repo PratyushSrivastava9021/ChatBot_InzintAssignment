@@ -30,10 +30,29 @@ if not DATABASE_URL:
 engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=300)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+# Initialize database on import
+try:
+    init_db()
+except Exception as e:
+    print(f"[WARN] Database init on import failed: {e}")
+
 def init_db():
     try:
         Base.metadata.create_all(bind=engine)
-        print("[OK] NeonDB tables created/verified")
+        
+        # Add conversation_id column if it doesn't exist
+        db = SessionLocal()
+        try:
+            from sqlalchemy import text
+            db.execute(text("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS conversation_id VARCHAR(255) DEFAULT 'default'"))
+            db.commit()
+            print("[OK] NeonDB tables created/verified with conversation_id column")
+        except Exception as alter_error:
+            print(f"[WARN] Column might already exist: {alter_error}")
+            db.rollback()
+        finally:
+            db.close()
+            
     except Exception as e:
         print(f"[ERROR] Database initialization failed: {e}")
         raise
