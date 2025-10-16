@@ -3,13 +3,6 @@ import { sendMessage, getChatHistory, resetConversation } from '../config/api';
 
 export const Context = createContext();
 
-// Utility function to decode HTML entities
-const decodeHtmlEntities = (str) => {
-    const textarea = document.createElement('textarea');
-    textarea.innerHTML = str;
-    return textarea.value;
-};
-
 const ContextProvider = (props) => {
     // Initialize state from localStorage to prevent flicker
     const getInitialState = () => {
@@ -145,85 +138,6 @@ const ContextProvider = (props) => {
         }
     };
 
-    const streamMessage = async (prompt, sessionId) => {
-        console.log('[STREAM] Starting stream for:', prompt);
-        
-        // Get API URL
-        let apiUrl;
-        if (import.meta.env.VITE_API_URL) {
-            apiUrl = import.meta.env.VITE_API_URL;
-        } else if (window.location.hostname === 'chat-bot-inzint-assignment.vercel.app') {
-            apiUrl = 'https://chatbot-inzintassignment.onrender.com/api';
-        } else {
-            apiUrl = 'http://localhost:8000/api';
-        }
-        
-        console.log('[STREAM] Using API URL:', apiUrl);
-        
-        const response = await fetch(`${apiUrl}/stream`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: prompt, session_id: sessionId })
-        });
-
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-        let streamedContent = '';
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n');
-            buffer = lines.pop() || '';
-
-            for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                    try {
-                        const data = JSON.parse(line.slice(6));
-                        
-                        if (data.content) {
-                            streamedContent += data.content;
-                            
-                            // Format with markdown
-                            let formatted = streamedContent
-                                .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold">$1</strong>')
-                                .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
-                                .replace(/^# (.*$)/gm, '<h1 class="text-2xl font-bold mb-4 mt-6 text-blue-400">$1</h1>')
-                                .replace(/^## (.*$)/gm, '<h2 class="text-xl font-semibold mb-3 mt-5 text-green-400">$1</h2>')
-                                .replace(/^### (.*$)/gm, '<h3 class="text-lg font-medium mb-2 mt-4 text-purple-400">$1</h3>')
-                                .replace(/^- (.*$)/gm, '<li class="ml-4 mb-1 list-disc">$1</li>')
-                                .replace(/\n\n/g, '</p><p class="mb-3">')
-                                .replace(/\n/g, '<br/>')
-                                .replace(/`([^`]+)`/g, '<code class="bg-gray-800 px-2 py-1 rounded text-sm font-mono text-green-300">$1</code>');
-                            
-                            if (!formatted.includes('<h1>') && !formatted.includes('<h2>') && !formatted.includes('<p>')) {
-                                formatted = `<p class="mb-3">${formatted}</p>`;
-                            }
-                            
-                            setResultData(formatted);
-                        }
-                        
-                        if (data.done) {
-                            setChatHistory(prev => [...prev, {
-                                user_message: prompt,
-                                bot_response: streamedContent.trim(),
-                                timestamp: new Date().toISOString()
-                            }]);
-                            return;
-                        }
-                    } catch (e) {
-                        console.log('[STREAM] Parse error:', e);
-                    }
-                }
-            }
-        }
-    };
-
     const loadPrompt = (prompt) => {
         const chat = chatHistory.find(c => c.user_message === prompt);
         if (chat) {
@@ -304,7 +218,6 @@ const ContextProvider = (props) => {
         chatHistory,
         loadHistory,
         isStreaming,
-        streamMessage,
         resetConversationHistory,
         attachedPDFInfo
     };
