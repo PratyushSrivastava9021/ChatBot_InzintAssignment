@@ -94,7 +94,7 @@ const ContextProvider = (props) => {
 
     const streamMessage = async (prompt, sessionId) => {
         try {
-            const response = await fetch('http://localhost:8000/api/stream', {
+            const response = await fetch(`${window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://your-backend-url.render.com'}/api/stream`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

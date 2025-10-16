@@ -55,7 +55,7 @@ const Main = () => {
       formData.append('file', file);
       
       setUploadProgress(50);
-      const response = await fetch('http://localhost:8000/api/process-pdf', {
+      const response = await fetch(`${window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://your-backend-url.render.com'}/api/process-pdf`, {
         method: 'POST',
         body: formData,
       });

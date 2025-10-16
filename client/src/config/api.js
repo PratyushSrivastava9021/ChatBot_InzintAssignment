@@ -1,11 +1,14 @@
-const API_BASE_URL = "http://localhost:8000/api";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+
+// Dynamic API URL based on environment
+const DYNAMIC_API_URL = API_BASE_URL;
 
 // File size limit (10MB)
 export const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 export const sendMessage = async (message, pdfContent = '', sessionId = 'default') => {
   try {
-    const response = await fetch(`${API_BASE_URL}/chat`, {
+    const response = await fetch(`${DYNAMIC_API_URL}/chat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -27,7 +30,7 @@ export const sendMessage = async (message, pdfContent = '', sessionId = 'default
 
 export const getChatHistory = async (sessionId = 'default', limit = 50) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/history?session_id=${sessionId}&limit=${limit}`);
+    const response = await fetch(`${DYNAMIC_API_URL}/history?session_id=${sessionId}&limit=${limit}`);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -40,7 +43,7 @@ export const getChatHistory = async (sessionId = 'default', limit = 50) => {
 
 export const getStats = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/stats`);
+    const response = await fetch(`${DYNAMIC_API_URL}/stats`);
     const data = await response.json();
     return data;
   } catch (error) {
@@ -51,7 +54,7 @@ export const getStats = async () => {
 
 export const trainModel = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/train`, {
+    const response = await fetch(`${DYNAMIC_API_URL}/train`, {
       method: "POST",
     });
     const data = await response.json();
@@ -67,7 +70,7 @@ export const processPDF = async (file) => {
     const formData = new FormData();
     formData.append('file', file);
     
-    const response = await fetch(`${API_BASE_URL}/process-pdf`, {
+    const response = await fetch(`${DYNAMIC_API_URL}/process-pdf`, {
       method: "POST",
       body: formData,
     });
@@ -89,7 +92,7 @@ export const uploadPDF = async (file) => {
     const formData = new FormData();
     formData.append('file', file);
     
-    const response = await fetch(`${API_BASE_URL}/upload-pdf`, {
+    const response = await fetch(`${DYNAMIC_API_URL}/upload-pdf`, {
       method: "POST",
       body: formData,
     });
@@ -108,7 +111,7 @@ export const uploadPDF = async (file) => {
 
 export const resetConversation = async (sessionId = 'default') => {
   try {
-    const response = await fetch(`${API_BASE_URL}/reset?session_id=${sessionId}`, {
+    const response = await fetch(`${DYNAMIC_API_URL}/reset?session_id=${sessionId}`, {
       method: "DELETE",
     });
     
